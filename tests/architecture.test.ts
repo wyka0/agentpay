@@ -179,6 +179,7 @@ describe("persistence boundary — one owner of storage", () => {
       .map((file) => file.path)
       .sort();
     expect(consumers).toEqual([
+      "app/api/agent/v1/requests/route.ts",
       "app/api/health/route.ts",
       "app/api/payments/history/route.ts",
       "app/api/payments/intents/route.ts",
@@ -486,6 +487,10 @@ describe("Sprint 10 security boundary", () => {
     expect(policies).toContain("SERVICE_FULFILL");
     expect(policies).toContain("SERVICE_RESULT");
     expect(policies).toContain("MARKET_DATA");
+    expect(policies).toContain("AGENT_REGISTER");
+    expect(policies).toContain("AGENT_REQUEST");
+    expect(policies).toContain("AGENT_STATUS");
+    expect(policies).toContain("AGENT_RESULT");
   });
 
   it("structured security events cover the documented event set", () => {
@@ -503,6 +508,12 @@ describe("Sprint 10 security boundary", () => {
       "SERVICE_FULFILLMENT_REJECTED",
       "CONFIGURATION_ERROR",
       "EXTERNAL_PROVIDER_ERROR",
+      "BODY_TOO_LARGE",
+      "ORIGIN_REJECTED",
+      "RECIPIENT_REJECTED",
+      "AGENT_REGISTERED",
+      "AGENT_SERVICE_REQUEST_CREATED",
+      "AGENT_SERVICE_REQUEST_IDEMPOTENT",
     ];
     for (const kind of required) {
       expect(logger).toContain(kind);

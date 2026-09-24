@@ -186,3 +186,23 @@ export function readIdField(
   }
   return result;
 }
+
+/** Extract an object field (for service input parameters). */
+export function readObjectField(
+  body: Record<string, unknown>,
+  field: string,
+): { ok: true; value: Record<string, unknown> } | { ok: false; code: string; message: string; status: number } {
+  const value = body[field];
+  if (value === undefined) {
+    return { ok: true, value: {} };
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return {
+      ok: false,
+      code: "INVALID_FIELD",
+      message: `${field} must be an object.`,
+      status: 400,
+    };
+  }
+  return { ok: true, value: value as Record<string, unknown> };
+}

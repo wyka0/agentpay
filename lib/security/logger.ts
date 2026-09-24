@@ -33,7 +33,10 @@ export type SecurityEventKind =
   | "EXTERNAL_PROVIDER_ERROR"
   | "BODY_TOO_LARGE"
   | "ORIGIN_REJECTED"
-  | "RECIPIENT_REJECTED";
+  | "RECIPIENT_REJECTED"
+  | "AGENT_REGISTERED"
+  | "AGENT_SERVICE_REQUEST_CREATED"
+  | "AGENT_SERVICE_REQUEST_IDEMPOTENT";
 
 export interface SecurityEvent {
   kind: SecurityEventKind;

@@ -43,6 +43,13 @@ export interface ServiceRequest {
    * fulfillment, or read the result.
    */
   ownerWalletAddress: EvmAddress | null;
+  /**
+   * Optional idempotency key provided by the client.
+   *
+   * Used to prevent duplicate requests from the same agent.
+   * Scoped to agentId + idempotencyKey.
+   */
+  idempotencyKey: string | null;
 }
 
 /**
@@ -82,6 +89,13 @@ export interface CreateServiceRequestInput {
    * fulfillment, or retrieve the result.
    */
   ownerWalletAddress: EvmAddress | null;
+  /**
+   * Optional idempotency key provided by the client.
+   *
+   * If provided, the server will check for an existing request with the same
+   * agentId + idempotencyKey and return that instead of creating a new one.
+   */
+  idempotencyKey?: string;
 }
 
 /**

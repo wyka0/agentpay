@@ -7,6 +7,7 @@ import type { ServiceRequest, ServiceResult } from "@/types/service-request";
  */
 export function createInMemoryServiceRequestRepository() {
   const requests = new Map<string, ServiceRequest>();
+  const requestsByIdempotency = new Map<string, string>(); // agentId:idempotencyKey -> requestId
 
   return {
     async create(request: ServiceRequest): Promise<void> {
@@ -14,6 +15,10 @@ export function createInMemoryServiceRequestRepository() {
         throw new Error("Duplicate service request id.");
       }
       requests.set(request.id, request);
+      if (request.idempotencyKey) {
+        const key = `${request.agentId}:${request.idempotencyKey}`;
+        requestsByIdempotency.set(key, request.id);
+      }
     },
 
     async getById(id: string): Promise<ServiceRequest | null> {
@@ -26,11 +31,23 @@ export function createInMemoryServiceRequestRepository() {
       );
     },
 
+    async getByIdempotencyKey(agentId: string, idempotencyKey: string): Promise<ServiceRequest | null> {
+      const key = `${agentId}:${idempotencyKey}`;
+      const requestId = requestsByIdempotency.get(key);
+      if (!requestId) return null;
+      return requests.get(requestId) ?? null;
+    },
+
     async update(request: ServiceRequest): Promise<void> {
       if (!requests.has(request.id)) {
         throw new Error("Service request not found.");
       }
       requests.set(request.id, request);
+      // Idempotency key shouldn't change, but if it does, update the index
+      if (request.idempotencyKey) {
+        const key = `${request.agentId}:${request.idempotencyKey}`;
+        requestsByIdempotency.set(key, request.id);
+      }
     },
 
     async listAll(): Promise<ServiceRequest[]> {
@@ -39,6 +56,7 @@ export function createInMemoryServiceRequestRepository() {
 
     async clearAll(): Promise<void> {
       requests.clear();
+      requestsByIdempotency.clear();
     },
   };
 }

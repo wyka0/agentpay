@@ -1,4 +1,5 @@
 import { AgentCard } from "@/components/agent-card";
+import { AgentRegistry } from "@/components/agent-registry";
 import { Hero } from "@/components/hero";
 import { PaymentPanel } from "@/components/payment-panel";
 import { PaymentsPanel } from "@/components/payments-panel";
@@ -53,6 +54,11 @@ export default function Home() {
             <AgentExecutionProvider>
               <ServiceRequestPanel />
             </AgentExecutionProvider>
+          </section>
+
+          <section className="mt-8 border-2 border-foreground">
+            <SectionLabel index="002" label="// SECTION: AGENT_REGISTRY" />
+            <AgentRegistry />
           </section>
 
           <footer className="mt-10 flex flex-col gap-2 border-t-2 border-foreground pt-6 md:flex-row md:items-center md:justify-between">

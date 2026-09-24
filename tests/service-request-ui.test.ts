@@ -33,6 +33,7 @@ function buildRequest(overrides: Partial<ServiceRequest> = {}): ServiceRequest {
     updatedAt: "2026-09-22T10:00:00.000Z",
     fulfilledAt: null,
     ownerWalletAddress: null,
+    idempotencyKey: null,
     ...overrides,
   };
 }

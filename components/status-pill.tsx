@@ -2,7 +2,7 @@ import type { AgentStatus } from "@/types";
 
 const LABELS: Record<AgentStatus, string> = {
   active: "ACTIVE",
-  paused: "PAUSED",
+  disabled: "DISABLED",
 };
 
 export function StatusPill({ status }: { status: AgentStatus }) {

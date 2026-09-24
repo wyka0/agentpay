@@ -82,6 +82,15 @@ export async function createServiceRequest(input: CreateServiceRequestInput): Pr
     throw new ServiceRequestError("Service is not active.", "SERVICE_INACTIVE", 422);
   }
 
+  // Check idempotency key if provided
+  if (input.idempotencyKey) {
+    const existing = await repo.getByIdempotencyKey(input.agentId, input.idempotencyKey);
+    if (existing) {
+      // Return existing request instead of creating duplicate
+      return { request: existing, spending: { currency: "USDC", dailyLimit: 0, spentToday: 0, remainingToday: 0, zone: "utc" } };
+    }
+  }
+
   // Get trusted spending to check policy limits before creating intent
   const spending = await getTrustedSpending();
 
@@ -101,6 +110,7 @@ export async function createServiceRequest(input: CreateServiceRequestInput): Pr
     updatedAt: now,
     fulfilledAt: null,
     ownerWalletAddress: input.ownerWalletAddress,
+    idempotencyKey: input.idempotencyKey ?? null,
   };
 
   await repo.create(request);

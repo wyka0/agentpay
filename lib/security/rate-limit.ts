@@ -176,6 +176,10 @@ export const POLICIES = {
   SERVICE_RESULT: { name: "SERVICE_RESULT", max: 60, windowMs: 60_000 },
   MARKET_DATA: { name: "MARKET_DATA", max: 60, windowMs: 60_000 },
   ANON_PROBE: { name: "ANON_PROBE", max: 20, windowMs: 60_000 },
+  AGENT_REGISTER: { name: "AGENT_REGISTER", max: 5, windowMs: 60_000 },
+  AGENT_REQUEST: { name: "AGENT_REQUEST", max: 30, windowMs: 60_000 },
+  AGENT_STATUS: { name: "AGENT_STATUS", max: 60, windowMs: 60_000 },
+  AGENT_RESULT: { name: "AGENT_RESULT", max: 60, windowMs: 60_000 },
 } as const satisfies Record<string, RateLimitPolicy>;
 
 export type PolicyName = keyof typeof POLICIES;
