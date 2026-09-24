@@ -6,6 +6,7 @@ import { PolicyCard } from "@/components/policy-card";
 import { SectionLabel } from "@/components/section-label";
 import { ServiceRequestPanel } from "@/components/service-request-panel";
 import { ServicesPanel } from "@/components/services-panel";
+import { SignInAction } from "@/components/sign-in-action";
 import { SiteHeader } from "@/components/site-header";
 import { TrustedLedgerPanel } from "@/components/trusted-ledger-panel";
 import { AgentExecutionProvider } from "@/components/agent-execution-provider";
@@ -21,6 +22,7 @@ export default function Home() {
 
       <main className="w-full">
         <Hero />
+        <SignInAction />
 
         <section className="w-full px-6 pb-16 lg:px-12">
           <SectionLabel index="000" label="// SECTION: AGENT_RUNTIME" />

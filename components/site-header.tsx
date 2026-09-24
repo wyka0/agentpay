@@ -1,7 +1,5 @@
-import { AuthButton } from "@/components/auth-button";
 import { BrandMark } from "@/components/brand-mark";
-import { NetworkIndicator } from "@/components/network-indicator";
-import { WalletConnectButton } from "@/components/wallet-connect-button";
+import { WalletHeaderButton } from "@/components/wallet-header-button";
 
 export function SiteHeader() {
   return (
@@ -12,9 +10,7 @@ export function SiteHeader() {
           <span className="text-xs font-bold tracking-[0.2em] uppercase">AgentPay</span>
         </div>
         <div className="flex items-center gap-3">
-          <NetworkIndicator />
-          <AuthButton />
-          <WalletConnectButton />
+          <WalletHeaderButton />
         </div>
       </nav>
     </header>
