@@ -29,7 +29,7 @@ const STATUS =
 export function AuthButton() {
   const { session, connection } = useWallet();
   const auth = useAuth();
-  const injected = useInjectedSignMessage();
+  const injected = useInjectedSignMessage(session.wallet.address ?? undefined);
   const [pending, setPending] = useState(false);
 
   const walletConnected = connection === "connected" || connection === "wrong-network";

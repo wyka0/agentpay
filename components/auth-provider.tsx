@@ -145,16 +145,23 @@ export function useAuth(): AuthContextValue {
  * Helper: produce a `signMessage` from the injected EIP-1193 provider.
  * Returns null when no provider is present, so the caller can show a
  * "wallet not detected" error.
+ *
+ * The address parameter is required for EIP-191 personal_sign to specify
+ * which account should sign the message. If not provided, the wallet
+ * may reject the signing request.
  */
-export function useInjectedSignMessage():
+export function useInjectedSignMessage(address?: Address | null):
   | ((message: string) => Promise<Hex>)
   | null {
   const provider = typeof window === "undefined" ? null : getInjectedProvider();
   if (!provider) return null;
   return async (message: string) => {
+    if (!address) {
+      throw new Error("Wallet address is required for signing.");
+    }
     const result = await provider.request({
       method: "personal_sign",
-      params: [message, /* account index intentionally omitted; wallet picks active */ ""],
+      params: [message, address],
     });
     if (typeof result !== "string") {
       throw new Error("The wallet returned a non-string signature.");
