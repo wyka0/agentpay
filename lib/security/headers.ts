@@ -32,9 +32,9 @@ const PROD_CSP = [
   "frame-ancestors 'none'",
   "form-action 'self'",
   "object-src 'none'",
-  // Script tags: only self. Next.js compiles scripts and emits them as
-  // external files; there are no inline scripts in production.
-  "script-src 'self'",
+  // Script tags: self + inline. Next.js injects inline scripts for
+  // hydration (self.__next_f), module registration, and dynamic imports.
+  "script-src 'self' 'unsafe-inline'",
   // Inline styles allowed because the design system uses heavy inline
   // style attributes (Framer Motion + tailwind utilities).
   "style-src 'self' 'unsafe-inline'",
