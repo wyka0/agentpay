@@ -3,6 +3,7 @@ import { AgentRegistry } from "@/components/agent-registry";
 import { Hero } from "@/components/hero";
 import { PaymentPanel } from "@/components/payment-panel";
 import { PaymentsPanel } from "@/components/payments-panel";
+import { PendingAgentRequests } from "@/components/pending-agent-requests";
 import { PolicyCard } from "@/components/policy-card";
 import { SectionLabel } from "@/components/section-label";
 import { ServiceRequestPanel } from "@/components/service-request-panel";
@@ -59,6 +60,11 @@ export default function Home() {
           <section className="mt-8 border-2 border-foreground">
             <SectionLabel index="002" label="// SECTION: AGENT_REGISTRY" />
             <AgentRegistry />
+          </section>
+
+          <section className="mt-8 border-2 border-foreground">
+            <SectionLabel index="003" label="// SECTION: PENDING_AGENT_REQUESTS" />
+            <PendingAgentRequests />
           </section>
 
           <footer className="mt-10 flex flex-col gap-2 border-t-2 border-foreground pt-6 md:flex-row md:items-center md:justify-between">

@@ -213,4 +213,23 @@ export class AgentPayClient {
       error: { code: "TIMEOUT", message: "Timed out waiting for result" },
     };
   }
+
+  /**
+   * DEMO MODE ONLY: Simulate payment completion without a real blockchain transaction.
+   *
+   * Only works when AGENTPAY_DEMO_MODE=true on the server.
+   * This is for testing/development only - never use in production.
+   */
+  async completeDemoPayment(requestId: string): Promise<RequestResult<{
+    ok: true;
+    requestId: string;
+    status: string;
+    trustedPaymentId: string;
+    txHash: string;
+  }>> {
+    return this.request(`/api/agent/v1/demo/complete-payment`, {
+      method: "POST",
+      body: JSON.stringify({ requestId }),
+    });
+  }
 }

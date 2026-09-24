@@ -36,7 +36,8 @@ export type SecurityEventKind =
   | "RECIPIENT_REJECTED"
   | "AGENT_REGISTERED"
   | "AGENT_SERVICE_REQUEST_CREATED"
-  | "AGENT_SERVICE_REQUEST_IDEMPOTENT";
+  | "AGENT_SERVICE_REQUEST_IDEMPOTENT"
+  | "DEMO_PAYMENT_COMPLETED";
 
 export interface SecurityEvent {
   kind: SecurityEventKind;

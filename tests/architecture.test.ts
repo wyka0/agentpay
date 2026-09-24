@@ -179,6 +179,7 @@ describe("persistence boundary — one owner of storage", () => {
       .map((file) => file.path)
       .sort();
     expect(consumers).toEqual([
+      "app/api/agent/v1/demo/complete-payment/route.ts",
       "app/api/agent/v1/requests/route.ts",
       "app/api/health/route.ts",
       "app/api/payments/history/route.ts",
@@ -326,6 +327,7 @@ describe("authentication boundary — server-only auth, no private keys, no brow
       .map((file) => file.path)
       .sort();
     expect(serverConsumers).toEqual([
+      "app/api/agent/v1/pending/route.ts",
       "app/api/auth/challenge/route.ts",
       "app/api/auth/logout/route.ts",
       "app/api/auth/session/route.ts",
@@ -491,6 +493,7 @@ describe("Sprint 10 security boundary", () => {
     expect(policies).toContain("AGENT_REQUEST");
     expect(policies).toContain("AGENT_STATUS");
     expect(policies).toContain("AGENT_RESULT");
+    expect(policies).toContain("AGENT_PENDING");
   });
 
   it("structured security events cover the documented event set", () => {
@@ -514,6 +517,7 @@ describe("Sprint 10 security boundary", () => {
       "AGENT_REGISTERED",
       "AGENT_SERVICE_REQUEST_CREATED",
       "AGENT_SERVICE_REQUEST_IDEMPOTENT",
+      "DEMO_PAYMENT_COMPLETED",
     ];
     for (const kind of required) {
       expect(logger).toContain(kind);

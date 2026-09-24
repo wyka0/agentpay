@@ -180,6 +180,7 @@ export const POLICIES = {
   AGENT_REQUEST: { name: "AGENT_REQUEST", max: 30, windowMs: 60_000 },
   AGENT_STATUS: { name: "AGENT_STATUS", max: 60, windowMs: 60_000 },
   AGENT_RESULT: { name: "AGENT_RESULT", max: 60, windowMs: 60_000 },
+  AGENT_PENDING: { name: "AGENT_PENDING", max: 60, windowMs: 60_000 },
 } as const satisfies Record<string, RateLimitPolicy>;
 
 export type PolicyName = keyof typeof POLICIES;
