@@ -195,11 +195,20 @@ export function PendingAgentRequests() {
                         onClick={() => handleApprove(req)}
                         type="button"
                       >
-                        {req.status === "payment_required" ? "Approve Payment" : "Payment Submitted"}
+                        Approve Payment
+                      </button>
+                    ) : req.status === "payment_confirmed" ? (
+                      <button
+                        className={PRIMARY}
+                        disabled={loading}
+                        onClick={() => handleApprove(req)}
+                        type="button"
+                      >
+                        Fulfill Service
                       </button>
                     ) : (
                       <span className={SECONDARY} style={{ cursor: "default" }}>
-                        {req.status === "payment_confirmed" ? "Approved" : req.status === "fulfilled" ? "Fulfilled" : "Done"}
+                        {req.status === "fulfilled" ? "Fulfilled" : "Done"}
                       </span>
                     )}
                   </div>
