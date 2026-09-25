@@ -1,5 +1,7 @@
 import { getService } from "@/lib/services/registry";
-import { createInMemoryServiceRequestRepository, createInMemoryServiceResultRepository, type ServiceRequestRepository, type ServiceResultRepository } from "@/lib/services/repository";
+import { getServiceRequestRepo, getServiceResultRepo, setServiceRepositoriesForTesting } from "@/lib/services/factory";
+
+export { setServiceRepositoriesForTesting } from "@/lib/services/factory";
 import { getServiceAdapter } from "@/lib/services/adapters";
 import { getTrustedRepository, type TrustedPaymentRepository } from "@/lib/payments/server/factory";
 import { getTrustedSpending } from "@/lib/payments/server/service";
@@ -36,30 +38,12 @@ export class ServiceRepositoryUnavailableError extends Error {
  * The client may only observe state; it cannot drive transitions directly.
  */
 
-let serviceRequestRepo: ServiceRequestRepository | null = null;
-let serviceResultRepo: ServiceResultRepository | null = null;
-
-function getServiceRequestRepo(): ServiceRequestRepository {
-  if (!serviceRequestRepo) {
-    serviceRequestRepo = createInMemoryServiceRequestRepository();
-  }
-  return serviceRequestRepo;
+function getRepo() {
+  return getServiceRequestRepo();
 }
 
-function getServiceResultRepo(): ServiceResultRepository {
-  if (!serviceResultRepo) {
-    serviceResultRepo = createInMemoryServiceResultRepository();
-  }
-  return serviceResultRepo;
-}
-
-/** Reset for testing. */
-export function setServiceRepositoriesForTesting(
-  requestRepo: ServiceRequestRepository | null,
-  resultRepo: ServiceResultRepository | null,
-): void {
-  serviceRequestRepo = requestRepo;
-  serviceResultRepo = resultRepo;
+function getResultRepo() {
+  return getServiceResultRepo();
 }
 
 /**
@@ -72,7 +56,7 @@ export async function createServiceRequest(input: CreateServiceRequestInput): Pr
   request: ServiceRequest;
   spending: SpendingSummary;
 }> {
-  const repo = getServiceRequestRepo();
+  const repo = await getRepo();
   const service = getService(input.serviceId);
 
   if (!service) {
@@ -127,7 +111,7 @@ export async function linkPaymentIntent(
   requestId: string,
   paymentIntentId: string,
 ): Promise<ServiceRequest> {
-  const repo = getServiceRequestRepo();
+  const repo = await getRepo();
   const request = await repo.getById(requestId);
 
   if (!request) {
@@ -160,7 +144,7 @@ export async function recordTransactionHash(
   requestId: string,
   txHash: `0x${string}`,
 ): Promise<ServiceRequest> {
-  const repo = getServiceRequestRepo();
+  const repo = await getRepo();
   const request = await repo.getById(requestId);
 
   if (!request) {
@@ -195,8 +179,8 @@ export async function fulfillServiceRequest(requestId: string): Promise<{
   request: ServiceRequest;
   result: ServiceResult | null;
 }> {
-  const requestRepo = getServiceRequestRepo();
-  const resultRepo = getServiceResultRepository();
+  const requestRepo = await getRepo();
+  const resultRepo = await getResultRepo();
   const trustedRepo = await getTrustedRepository();
 
   const request = await requestRepo.getById(requestId);
@@ -328,15 +312,11 @@ async function findTrustedPaymentForRequest(
   return byService[0] ?? null;
 }
 
-function getServiceResultRepository(): ServiceResultRepository {
-  return getServiceResultRepo();
-}
-
 /**
  * Get a service request by ID.
  */
 export async function getServiceRequest(requestId: string): Promise<ServiceRequest | null> {
-  const repo = getServiceRequestRepo();
+  const repo = await getRepo();
   return repo.getById(requestId);
 }
 
@@ -344,7 +324,7 @@ export async function getServiceRequest(requestId: string): Promise<ServiceReque
  * Get service result for a request.
  */
 export async function getServiceResult(requestId: string): Promise<ServiceResult | null> {
-  const repo = getServiceResultRepository();
+  const repo = await getResultRepo();
   return repo.getByRequestId(requestId);
 }
 
@@ -352,7 +332,7 @@ export async function getServiceResult(requestId: string): Promise<ServiceResult
  * List all service requests.
  */
 export async function listServiceRequests(): Promise<ServiceRequest[]> {
-  const repo = getServiceRequestRepo();
+  const repo = await getRepo();
   return repo.listAll();
 }
 
@@ -360,7 +340,7 @@ export async function listServiceRequests(): Promise<ServiceRequest[]> {
  * List all service results.
  */
 export async function listServiceResults(): Promise<ServiceResult[]> {
-  const repo = getServiceResultRepository();
+  const repo = await getResultRepo();
   return repo.listAll();
 }
 
