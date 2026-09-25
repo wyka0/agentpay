@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { applySecurityHeaders, guardJsonRequest } from "@/lib/security";
+import { applySecurityHeaders } from "@/lib/security";
 import { logSecurityEvent } from "@/lib/security/logger";
 import { hashKey } from "@/lib/security/rate-limit";
 import { readStringField, readObjectField } from "@/lib/security/request-body";
@@ -8,8 +8,6 @@ import { getService } from "@/lib/services/registry";
 import { createPaymentIntent } from "@/lib/payments/server/service";
 import { createServiceRequest } from "@/lib/services/service";
 import { parseIntentRequest } from "@/lib/payments/server/validation";
-import { getTrustedRepository } from "@/lib/payments/server/factory";
-import { authenticateAgent } from "@/lib/agent/auth";
 import { guardAgentRequest } from "@/lib/agent/guard";
 
 /**
@@ -52,7 +50,6 @@ import { guardAgentRequest } from "@/lib/agent/guard";
  * 429 RATE_LIMITED
  * 503 LEDGER_UNAVAILABLE
  */
-const MAX_BODY_BYTES = 8 * 1024;
 
 export async function POST(request: Request): Promise<NextResponse> {
   // Use agent guard which handles auth + rate limiting
@@ -65,9 +62,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Read idempotency key from header
   const idempotencyKey = request.headers.get("idempotency-key") ?? undefined;
 
-  // Parse body (already parsed by guard, but we need the fields)
-  // Re-read the body since guard consumed it
-  const body = await request.clone().json();
+  // Parse body (guard does NOT consume body - only reads headers)
+  const body = await request.json();
 
   const serviceField = readStringField(body, "serviceId", 128);
   if (!serviceField.ok) {
@@ -171,7 +167,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       return response;
     }
 
-    const trustedRepo = await getTrustedRepository();
     const outcome = await createPaymentIntent({
       ...parsed.body,
       ownerWalletAddress,
