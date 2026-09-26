@@ -8,6 +8,13 @@ import {
   type TrustedPaymentRepository,
 } from "./repository";
 
+interface PoolConfigExtended {
+  connectionString?: string;
+  max?: number;
+  statement_cache_size?: number;
+  [key: string]: unknown;
+}
+
 /**
  * Durable PostgreSQL adapter for the trusted ledger.
  *
@@ -149,7 +156,7 @@ function rowToPayment(row: PaymentRow): TrustedPayment {
 }
 
 export function createPostgresTrustedRepository(connectionString: string): TrustedPaymentRepository {
-  const pool = new Pool({ connectionString, max: 5 });
+  const pool = new Pool({ connectionString, max: 5, statement_cache_size: 0 } as PoolConfigExtended);
   let schemaReady: Promise<void> | null = null;
 
   function ensureSchema(): Promise<void> {
