@@ -153,7 +153,8 @@ export function createPostgresServiceRequestRepository(connectionString: string)
 
   async function query<T>(text: string, values: unknown[] = []): Promise<T[]> {
     await ensureSchema();
-    const result = await pool.query(text, values);
+    const config = { text, values, name: false } as const;
+    const result = await pool.query(config as unknown as string);
     return result.rows as T[];
   }
 
@@ -315,7 +316,8 @@ export function createPostgresServiceResultRepository(connectionString: string) 
 
   async function query<T>(text: string, values: unknown[] = []): Promise<T[]> {
     await ensureSchema();
-    const result = await pool.query(text, values);
+    const config = { text, values, name: false } as const;
+    const result = await pool.query(config as unknown as string);
     return result.rows as T[];
   }
 
