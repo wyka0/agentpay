@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, useInjectedSignMessage } from "@/components/auth-provider";
 import { useWallet } from "@/components/wallet-provider";
 import { shortenAddress } from "@/lib/wallet/state";
 import { formatMoney } from "@/lib/money";
@@ -178,6 +178,7 @@ function RejectModal({ isOpen, onClose, onConfirm, isLoading, request }: RejectM
 export function PendingAgentRequests() {
   const auth = useAuth();
   const wallet = useWallet();
+  const injected = useInjectedSignMessage(auth.session?.walletAddress ?? undefined);
   const [pendingRequests, setPendingRequests] = useState<PendingAgentRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -188,7 +189,7 @@ export function PendingAgentRequests() {
   const mountedRef = useRef(true);
 
   const fetchPending = useCallback(async () => {
-    if (!auth.session) return;
+    // Always attempt to fetch; the server will return 401 if not authenticated
     setLoading(true);
     setError(null);
     try {
@@ -198,19 +199,30 @@ export function PendingAgentRequests() {
         credentials: "include",
       });
       const data = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Not authenticated - this is expected, don't set error
+          if (mountedRef.current) {
+            setPendingRequests([]);
+            setLoading(false);
+          }
+          return;
+        }
+        throw new Error(data?.error?.message ?? "Failed to load pending requests");
+      }
       if (data.ok && mountedRef.current) {
         setPendingRequests(data.requests);
       }
-    } catch {
+    } catch (err) {
       if (mountedRef.current) {
-        setError("Failed to load pending requests");
+        setError(err instanceof Error ? err.message : "Failed to load pending requests");
       }
     } finally {
       if (mountedRef.current) {
         setLoading(false);
       }
     }
-  }, [auth.session]);
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -282,8 +294,8 @@ export function PendingAgentRequests() {
           intentId: intent.id,
           txHash: sent.transactionHash,
         });
-        if (!verifyResult.ok) throw new Error(verifyResult.code === "ALREADY_RECORDED" 
-          ? "Transaction already recorded" 
+        if (!verifyResult.ok) throw new Error(verifyResult.code === "ALREADY_RECORDED"
+          ? "Transaction already recorded"
           : verifyResult.message);
 
         // Verify the transaction with the trusted ledger
@@ -433,40 +445,79 @@ export function PendingAgentRequests() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {req.status === "payment_required" || req.status === "payment_pending" ? (
-                        <>
+                      {auth.status === "authenticated" ? (
+                        req.status === "payment_required" || req.status === "payment_pending" ? (
+                          <>
+                            <button
+                              className={PRIMARY}
+                              disabled={loading}
+                              onClick={() => handleApprove(req)}
+                              type="button"
+                            >
+                              Approve Payment
+                            </button>
+                            <button
+                              className={SECONDARY}
+                              disabled={loading}
+                              onClick={() => handleReject(req)}
+                              type="button"
+                            >
+                              Reject Payment
+                            </button>
+                          </>
+                        ) : req.status === "payment_confirmed" ? (
                           <button
                             className={PRIMARY}
                             disabled={loading}
                             onClick={() => handleApprove(req)}
                             type="button"
                           >
-                            Approve Payment
+                            Fulfill Service
+                          </button>
+                        ) : (
+                          <span className={SECONDARY} style={{ cursor: "default" }}>
+                            {req.status === "fulfilled" ? "Fulfilled" : "Done"}
+                          </span>
+                        )
+                      ) : (
+                        <>
+                          <button
+                            className={PRIMARY}
+                            disabled={!injected}
+                            onClick={async () => {
+                              if (auth.session?.walletAddress && injected) {
+                                try {
+                                  await auth.signIn({ walletAddress: auth.session.walletAddress, signMessage: injected });
+                                  await auth.refresh();
+                                } catch {
+                                  // Error handled in auth context
+                                }
+                              }
+                            }}
+                            type="button"
+                          >
+                            Sign In to Approve
                           </button>
                           <button
                             className={SECONDARY}
-                            disabled={loading}
-                            onClick={() => handleReject(req)}
+                            disabled={!injected}
+                            onClick={async () => {
+                              if (auth.session?.walletAddress && injected) {
+                                try {
+                                  await auth.signIn({ walletAddress: auth.session.walletAddress, signMessage: injected });
+                                  await auth.refresh();
+                                } catch {
+                                  // Error handled in auth context
+                                }
+                              }
+                            }}
                             type="button"
                           >
-                            Reject Payment
+                            Sign In to Reject
                           </button>
                         </>
-                      ) : req.status === "payment_confirmed" ? (
-                        <button
-                          className={PRIMARY}
-                          disabled={loading}
-                          onClick={() => handleApprove(req)}
-                          type="button"
-                        >
-                          Fulfill Service
-                        </button>
-                      ) : (
-                        <span className={SECONDARY} style={{ cursor: "default" }}>
-                          {req.status === "fulfilled" ? "Fulfilled" : "Done"}
-                        </span>
                       )}
-                  </div>
+                    </div>
                 </div>
               </li>
             ))}
