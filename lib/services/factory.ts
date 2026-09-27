@@ -23,11 +23,20 @@ export function hasDurableServiceRequests(): boolean {
   return Boolean(process.env.DATABASE_URL?.trim());
 }
 
+function getUnpooledDatabaseUrl(): string | undefined {
+  // Try Neon unpooled connection strings in order of preference
+  // These bypass PgBouncer transaction pooling which doesn't support prepared statements
+  return (
+    process.env.POSTGRES_URL_NON_POOLING?.trim() ??
+    process.env.DATABASE_URL_UNPOOLED?.trim() ??
+    process.env.DATABASE_URL?.trim()
+  );
+}
+
 export async function getServiceRequestRepo(): Promise<ServiceRequestRepository> {
   if (serviceRequestRepo) return serviceRequestRepo;
 
-  // Use unpooled connection for PostgreSQL to avoid PgBouncer prepared statement conflicts
-  const url = process.env.DATABASE_URL_UNPOOLED?.trim() ?? process.env.DATABASE_URL?.trim();
+  const url = getUnpooledDatabaseUrl();
   if (url) {
     const { createPostgresServiceRequestRepository } = await import("./postgres");
     serviceRequestRepo = createPostgresServiceRequestRepository(url);
@@ -41,8 +50,7 @@ export async function getServiceRequestRepo(): Promise<ServiceRequestRepository>
 export async function getServiceResultRepo(): Promise<ServiceResultRepository> {
   if (serviceResultRepo) return serviceResultRepo;
 
-  // Use unpooled connection for PostgreSQL to avoid PgBouncer prepared statement conflicts
-  const url = process.env.DATABASE_URL_UNPOOLED?.trim() ?? process.env.DATABASE_URL?.trim();
+  const url = getUnpooledDatabaseUrl();
   if (url) {
     const { createPostgresServiceResultRepository } = await import("./postgres");
     serviceResultRepo = createPostgresServiceResultRepository(url);
