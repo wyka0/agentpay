@@ -145,8 +145,23 @@ export async function POST(
       return response;
     }
 
-    // Check for confirmed trusted payment
-    const existingPayment = await trustedRepo.findByIntentId(serviceRequest.paymentIntentId);
+    // Check for confirmed trusted payment - use multiple lookup strategies
+    let existingPayment = await trustedRepo.findByIntentId(serviceRequest.paymentIntentId);
+
+    // Fallback: direct query using service request's agentId and serviceId
+    // This handles cases where intent_id is NULL or intent agent_id/service_id don't match
+    if (!existingPayment || existingPayment.status !== "confirmed") {
+      if (typeof trustedRepo.findConfirmedPaymentForRequest === "function") {
+        existingPayment = await trustedRepo.findConfirmedPaymentForRequest(
+          serviceRequest.agentId,
+          serviceRequest.serviceId,
+          serviceRequest.ownerWalletAddress ?? "",
+          0.1,
+          "USDC"
+        );
+      }
+    }
+
     if (!existingPayment || existingPayment.status !== "confirmed") {
       const response = NextResponse.json(
         { ok: false, error: { code: "NO_CONFIRMED_PAYMENT", message: "No confirmed trusted payment found for this intent." } },

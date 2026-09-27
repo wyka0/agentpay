@@ -31,6 +31,7 @@ export interface TrustedPaymentRepository {
   findByTxHash(txHash: TransactionHash): Promise<TrustedPayment | null>;
   findById(id: string): Promise<TrustedPayment | null>;
   findByIntentId(intentId: string): Promise<TrustedPayment | null>;
+  findConfirmedPaymentForRequest(agentId: string, serviceId: string, ownerWalletAddress: string, amount: number, currency: string): Promise<TrustedPayment | null>;
   /** Idempotent: the same txHash can never create a second record. */
   insertPayment(record: TrustedPayment): Promise<InsertPaymentResult>;
   listPayments(): Promise<TrustedPayment[]>;
@@ -105,6 +106,23 @@ export function createInMemoryTrustedRepository(): TrustedPaymentRepository {
       for (const payment of paymentsById.values()) {
         const normalized = normalizePayment(payment);
         if (normalized.intentId === intentId) {
+          return normalized;
+        }
+      }
+      return null;
+    },
+
+    async findConfirmedPaymentForRequest(agentId, serviceId, ownerWalletAddress, amount, currency) {
+      for (const payment of paymentsById.values()) {
+        const normalized = normalizePayment(payment);
+        if (
+          normalized.agentId === agentId &&
+          normalized.serviceId === serviceId &&
+          normalized.status === "confirmed" &&
+          normalized.recipient === ownerWalletAddress &&
+          normalized.amount.amount === amount &&
+          normalized.currency === currency
+        ) {
           return normalized;
         }
       }

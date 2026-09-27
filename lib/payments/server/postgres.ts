@@ -290,6 +290,17 @@ export function createPostgresTrustedRepository(connectionString: string): Trust
       return null;
     },
 
+    async findConfirmedPaymentForRequest(agentId, serviceId, ownerWalletAddress, amount, currency) {
+      const rows = await query<PaymentRow>(
+        `SELECT * FROM agentpay_trusted_payments 
+         WHERE agent_id = $1 AND service_id = $2 AND status = 'confirmed'
+         AND recipient = $3 AND amount = $4 AND currency = $5
+         ORDER BY confirmed_at DESC LIMIT 1`,
+        [agentId, serviceId, ownerWalletAddress, amount.toString(), currency],
+      );
+      return rows[0] ? rowToPayment(rows[0]) : null;
+    },
+
     async insertPayment(record): Promise<InsertPaymentResult> {
       const inserted = await query<PaymentRow>(
         `INSERT INTO agentpay_trusted_payments
