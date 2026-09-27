@@ -20,6 +20,23 @@ const SECONDARY =
 const STATUS_BADGE =
   "inline-flex items-center gap-1.5 border px-1.5 py-0.5 text-[9px] font-bold tracking-[0.2em] uppercase";
 
+const MODAL_OVERLAY =
+  "fixed inset-0 bg-black/50 flex items-center justify-center z-50";
+const MODAL_BOX =
+  "w-full max-w-md bg-background border-2 border-foreground p-6";
+const MODAL_TITLE =
+  "text-sm font-bold tracking-[0.2em] uppercase text-foreground mb-4";
+const MODAL_TEXT =
+  "text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-6";
+const MODAL_REQUEST =
+  "border-2 border-foreground p-4 mb-6";
+const MODAL_ACTIONS =
+  "flex items-center gap-2 justify-end";
+const MODAL_BUTTON_PRIMARY =
+  "border-2 border-foreground bg-foreground px-4 py-2 text-[10px] font-bold tracking-[0.2em] uppercase text-background transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60";
+const MODAL_BUTTON_SECONDARY =
+  "border border-foreground/40 px-4 py-2 text-[10px] font-bold tracking-[0.2em] uppercase text-muted-foreground transition-colors hover:border-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60";
+
 interface PendingAgentRequest {
   id: string;
   agentName: string;
@@ -33,6 +50,55 @@ interface PendingAgentRequest {
   ownerWalletAddress: string;
 }
 
+interface RejectModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  isLoading: boolean;
+  request: PendingAgentRequest | null;
+}
+
+function RejectModal({ isOpen, onClose, onConfirm, isLoading, request }: RejectModalProps) {
+  if (!isOpen || !request) return null;
+
+  return (
+    <div className={MODAL_OVERLAY} onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="reject-modal-title" aria-describedby="reject-modal-desc">
+      <div className={MODAL_BOX} onClick={(e) => e.stopPropagation()}>
+        <h2 id="reject-modal-title" className={MODAL_TITLE}>CONFIRM REJECTION</h2>
+        <p id="reject-modal-desc" className={MODAL_TEXT}>
+          REJECT THIS PAYMENT REQUEST?
+        </p>
+        <p className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-6">
+          This will permanently reject this payment request. No USDC will be transferred and the requested service will not be fulfilled.
+        </p>
+        <div className={MODAL_REQUEST}>
+          <p className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-1">REQUEST</p>
+          <p className="font-mono text-sm text-accent">{request.serviceName}</p>
+          <p className="font-mono text-sm text-accent mt-1">{formatMoney(request.amount, request.currency)}</p>
+        </div>
+        <div className={MODAL_ACTIONS}>
+          <button
+            className={MODAL_BUTTON_SECONDARY}
+            disabled={isLoading}
+            onClick={onClose}
+            type="button"
+          >
+            CANCEL
+          </button>
+          <button
+            className={MODAL_BUTTON_PRIMARY}
+            disabled={isLoading}
+            onClick={onConfirm}
+            type="button"
+          >
+            REJECT PAYMENT
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PendingAgentRequests() {
   const auth = useAuth();
   const wallet = useWallet();
@@ -40,6 +106,9 @@ export function PendingAgentRequests() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [demoMode, setDemoMode] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<PendingAgentRequest | null>(null);
+  const [rejectLoading, setRejectLoading] = useState(false);
   const mountedRef = useRef(true);
 
   const fetchPending = useCallback(async () => {
@@ -159,15 +228,17 @@ export function PendingAgentRequests() {
     fetchPending();
   }, [demoMode, fetchPending, wallet]);
 
-  const handleReject = useCallback(async (request: PendingAgentRequest) => {
-    setError(null);
-    // Confirm before rejecting
-    if (!confirm("Reject this payment request? The agent will not be able to use this payment intent.")) {
-      return;
-    }
+  const handleReject = useCallback((request: PendingAgentRequest) => {
+    setRejectTarget(request);
+    setRejectModalOpen(true);
+  }, []);
+
+  const handleRejectConfirm = useCallback(async () => {
+    if (!rejectTarget) return;
+    setRejectLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/services/requests/${request.id}/reject`, {
+      const response = await fetch(`/api/services/requests/${rejectTarget.id}/reject`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         credentials: "include",
@@ -178,136 +249,145 @@ export function PendingAgentRequests() {
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to reject payment request");
-      return;
+    } finally {
+      setRejectLoading(false);
+      setRejectModalOpen(false);
+      setRejectTarget(null);
     }
     fetchPending();
   }, [fetchPending]);
+
+  const handleRejectCancel = useCallback(() => {
+    setRejectModalOpen(false);
+    setRejectTarget(null);
+  }, []);
 
   const handleDemoModeToggle = () => {
     setDemoMode((prev) => !prev);
   };
 
   return (
-    <section className="border-2 border-foreground bg-background/80 p-6">
-      <div className="flex flex-col items-center gap-4 text-center mb-6">
-        <span className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-          Pending Agent Requests
-        </span>
-        <p className="text-sm text-foreground max-w-md">
-          Review and approve payment requests from your registered external agents.
-          Each request requires explicit human wallet approval.
-        </p>
-        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-          <input
-            type="checkbox"
-            checked={demoMode}
-            onChange={handleDemoModeToggle}
-            className="border-2 border-foreground bg-background px-2 py-1 text-[10px] font-mono uppercase"
-          />
-          <span className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
-            Demo Mode (simulate payment without real transaction)
-          </span>
-        </label>
-      </div>
-
-      {error && (
-        <div className="mb-4 border-2 border-accent bg-accent/5 p-4">
-          <p className="text-[10px] tracking-[0.15em] text-accent uppercase" role="alert">
-            {error}
-          </p>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex items-center justify-center py-8">
+    <>
+      <section className="border-2 border-foreground bg-background/80 p-6">
+        <div className="flex flex-col items-center gap-4 text-center mb-6">
           <span className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-            Loading pending requests…
+            Pending Agent Requests
           </span>
-        </div>
-      ) : pendingRequests.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-            No pending agent requests.
+          <p className="text-sm text-foreground max-w-md">
+            Review and approve payment requests from your registered external agents.
+            Each request requires explicit human wallet approval.
           </p>
+          <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={demoMode}
+              onChange={handleDemoModeToggle}
+              className="border-2 border-foreground bg-background px-2 py-1 text-[10px] font-mono uppercase"
+            />
+            <span className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
+              Demo Mode (simulate payment without real transaction)
+            </span>
+          </label>
         </div>
-      ) : (
-        <div className="border-2 border-foreground">
-          <div className="border-b-2 border-foreground px-4 py-2">
-            <p className="text-sm font-bold uppercase">Pending Approvals</p>
+
+        {error && (
+          <div className="mb-4 border-2 border-accent bg-accent/5 p-4">
+            <p className="text-[10px] tracking-[0.15em] text-accent uppercase" role="alert">
+              {error}
+            </p>
           </div>
-          <ul className="divide-y divide-border">
-            {pendingRequests.map((req) => (
-              <li key={req.id} className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-bold uppercase">{req.agentName}</p>
-                    <span className={STATUS_BADGE}>
-                      {req.serviceCategory.toUpperCase()}
-                    </span>
-                    <span
-                      className={`${STATUS_BADGE} ${
-                        req.status === "payment_required"
-                          ? "border-accent bg-accent/5 text-accent"
-                          : req.status === "payment_pending"
-                          ? "border-accent bg-accent/5 text-accent"
-                          : req.status === "payment_confirmed"
-                          ? "border-foreground bg-foreground text-background"
-                          : "border-border text-muted-foreground"
-                      }`}
-                    >
-                      {req.status.replace(/_/g, " ").toUpperCase()}
-                    </span>
+        )}
+
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <span className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
+              Loading pending requests…
+            </span>
+          </div>
+        ) : pendingRequests.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
+              No pending agent requests.
+            </p>
+          </div>
+        ) : (
+          <div className="border-2 border-foreground">
+            <div className="border-b-2 border-foreground px-4 py-2">
+              <p className="text-sm font-bold uppercase">Pending Approvals</p>
+            </div>
+            <ul className="divide-y divide-border">
+              {pendingRequests.map((req) => (
+                <li key={req.id} className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold uppercase">{req.agentName}</p>
+                      <span className={STATUS_BADGE}>
+                        {req.serviceCategory.toUpperCase()}
+                      </span>
+                      <span
+                        className={`${STATUS_BADGE} ${
+                          req.status === "payment_required"
+                            ? "border-accent bg-accent/5 text-accent"
+                            : req.status === "payment_pending"
+                            ? "border-accent bg-accent/5 text-accent"
+                            : req.status === "payment_confirmed"
+                            ? "border-foreground bg-foreground text-background"
+                            : "border-border text-muted-foreground"
+                        }`}
+                      >
+                        {req.status.replace(/_/g, " ").toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
+                      {req.serviceName}
+                    </p>
+                    <p className="text-[9px] font-mono text-muted-foreground">
+                      ID: {req.id} · Intent: {req.intentId ?? "—"} · Created: {new Date(req.createdAt).toLocaleString()}
+                    </p>
                   </div>
-                  <p className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
-                    {req.serviceName}
-                  </p>
-                  <p className="text-[9px] font-mono text-muted-foreground">
-                    ID: {req.id} · Intent: {req.intentId ?? "—"} · Created: {new Date(req.createdAt).toLocaleString()}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 sm:ml-4">
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="font-mono text-sm text-accent">
-                      {formatMoney(req.amount, req.currency)}
-                    </span>
-                    <span className="text-[9px] tracking-[0.15em] text-muted-foreground uppercase">
-                      Owner: {shortenAddress(req.ownerWalletAddress)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {req.status === "payment_required" || req.status === "payment_pending" ? (
-                      <>
+                  <div className="flex items-center gap-2 sm:ml-4">
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="font-mono text-sm text-accent">
+                        {formatMoney(req.amount, req.currency)}
+                      </span>
+                      <span className="text-[9px] tracking-[0.15em] text-muted-foreground uppercase">
+                        Owner: {shortenAddress(req.ownerWalletAddress)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {req.status === "payment_required" || req.status === "payment_pending" ? (
+                        <>
+                          <button
+                            className={PRIMARY}
+                            disabled={loading}
+                            onClick={() => handleApprove(req)}
+                            type="button"
+                          >
+                            Approve Payment
+                          </button>
+                          <button
+                            className={SECONDARY}
+                            disabled={loading}
+                            onClick={() => handleReject(req)}
+                            type="button"
+                          >
+                            Reject Payment
+                          </button>
+                        </>
+                      ) : req.status === "payment_confirmed" ? (
                         <button
                           className={PRIMARY}
                           disabled={loading}
                           onClick={() => handleApprove(req)}
                           type="button"
                         >
-                          Approve Payment
+                          Fulfill Service
                         </button>
-                        <button
-                          className={SECONDARY}
-                          disabled={loading}
-                          onClick={() => handleReject(req)}
-                          type="button"
-                        >
-                          Reject Payment
-                        </button>
-                      </>
-                    ) : req.status === "payment_confirmed" ? (
-                      <button
-                        className={PRIMARY}
-                        disabled={loading}
-                        onClick={() => handleApprove(req)}
-                        type="button"
-                      >
-                        Fulfill Service
-                      </button>
-                    ) : (
-                      <span className={SECONDARY} style={{ cursor: "default" }}>
-                        {req.status === "fulfilled" ? "Fulfilled" : "Done"}
-                      </span>
-                    )}
+                      ) : (
+                        <span className={SECONDARY} style={{ cursor: "default" }}>
+                          {req.status === "fulfilled" ? "Fulfilled" : "Done"}
+                        </span>
+                      )}
                   </div>
                 </div>
               </li>
@@ -316,5 +396,13 @@ export function PendingAgentRequests() {
         </div>
       )}
     </section>
+    <RejectModal
+      isOpen={rejectModalOpen}
+      onClose={handleRejectCancel}
+      onConfirm={handleRejectConfirm}
+      isLoading={rejectLoading}
+      request={rejectTarget}
+    />
+    </>
   );
 }
