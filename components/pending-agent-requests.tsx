@@ -59,11 +59,81 @@ interface RejectModalProps {
 }
 
 function RejectModal({ isOpen, onClose, onConfirm, isLoading, request }: RejectModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+  const focusableElementsSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+  const trapFocus = useCallback((event: KeyboardEvent) => {
+    const modal = modalRef.current;
+    if (!modal) return;
+
+    const focusableElements = modal.querySelectorAll<HTMLElement>(focusableElementsSelector);
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    if (event.shiftKey) {
+      // Shift + Tab - move backwards
+      if (document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement?.focus();
+      }
+    } else {
+      // Tab - move forwards
+      if (document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement?.focus();
+      }
+    }
+  }, []);
+
+  // Focus management when modal opens/closes
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Store the element that had focus before modal opened
+    previousActiveElementRef.current = document.activeElement as HTMLElement;
+
+    // Make background content inert to prevent focus
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+      mainContent.setAttribute('inert', 'true');
+    }
+
+    // Focus the first focusable element in the modal (Cancel button)
+    setTimeout(() => {
+      const cancelButton = modalRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)');
+      cancelButton?.focus();
+    }, 0);
+
+    // Handle escape key
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      } else if (event.key === 'Tab') {
+        trapFocus(event);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      // Remove inert when modal closes
+      if (mainContent) {
+        mainContent.removeAttribute('inert');
+      }
+      // Restore focus to the element that opened the modal
+      if (previousActiveElementRef.current) {
+        previousActiveElementRef.current.focus();
+      }
+    };
+  }, [isOpen, onClose, trapFocus]);
+
   if (!isOpen || !request) return null;
 
   return (
     <div className={MODAL_OVERLAY} onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="reject-modal-title" aria-describedby="reject-modal-desc">
-      <div className={MODAL_BOX} onClick={(e) => e.stopPropagation()}>
+      <div ref={modalRef} className={MODAL_BOX} onClick={(e) => e.stopPropagation()}>
         <h2 id="reject-modal-title" className={MODAL_TITLE}>CONFIRM REJECTION</h2>
         <p id="reject-modal-desc" className={MODAL_TEXT}>
           REJECT THIS PAYMENT REQUEST?
@@ -270,7 +340,7 @@ export function PendingAgentRequests() {
 
   return (
     <>
-      <section className="border-2 border-foreground bg-background/80 p-6">
+      <section id="main-content" className="border-2 border-foreground bg-background/80 p-6">
         <div className="flex flex-col items-center gap-4 text-center mb-6">
           <span className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
             Pending Agent Requests
