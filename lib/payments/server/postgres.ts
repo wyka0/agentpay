@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS agentpay_trusted_payments (
   status TEXT NOT NULL,
   block_number TEXT NOT NULL,
   owner_wallet_address TEXT,
+  intent_id TEXT,
   confirmed_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL
 );
@@ -106,6 +107,7 @@ interface PaymentRow {
   owner_wallet_address: string | null;
   confirmed_at: Date;
   created_at: Date;
+  intent_id: string | null;
 }
 
 function toIso(value: Date | string): string {
@@ -152,6 +154,7 @@ function rowToPayment(row: PaymentRow): TrustedPayment {
     ownerWalletAddress: (row.owner_wallet_address as EvmAddress | null) ?? null,
     confirmedAt: toIso(row.confirmed_at),
     createdAt: toIso(row.created_at),
+    intentId: row.intent_id ?? null,
   };
 }
 
@@ -246,14 +249,22 @@ export function createPostgresTrustedRepository(connectionString: string): Trust
       return rows[0] ? rowToPayment(rows[0]) : null;
     },
 
+    async findByIntentId(intentId) {
+      const rows = await query<PaymentRow>(
+        `SELECT * FROM agentpay_trusted_payments WHERE intent_id = $1 LIMIT 1`,
+        [intentId],
+      );
+      return rows[0] ? rowToPayment(rows[0]) : null;
+    },
+
     async insertPayment(record): Promise<InsertPaymentResult> {
       const inserted = await query<PaymentRow>(
         `INSERT INTO agentpay_trusted_payments
           (id, tx_hash, chain_id, token_address, agent_id, service_id, service_name, sender,
-           recipient, amount, amount_base_units, currency, status, block_number, owner_wallet_address, confirmed_at, created_at)
+           recipient, amount, amount_base_units, currency, status, block_number, owner_wallet_address, intent_id, confirmed_at, created_at)
          VALUES (
            $1, $2, $3::integer, $4, $5, $6::text, $7, $8, $9,
-           $10::numeric, $11, $12, $13, $14, $15, $16::timestamptz, $17::timestamptz
+           $10::numeric, $11, $12, $13, $14, $15, $16, $17::timestamptz, $18::timestamptz
          )
          ON CONFLICT (tx_hash) DO NOTHING
          RETURNING *`,
@@ -273,6 +284,7 @@ export function createPostgresTrustedRepository(connectionString: string): Trust
           record.status,
           record.blockNumber,
           record.ownerWalletAddress,
+          record.intentId,
           record.confirmedAt,
           record.createdAt,
         ],

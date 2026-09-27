@@ -23,6 +23,7 @@ function createTrustedPayment(overrides: Partial<TrustedPayment> = {}): TrustedP
     confirmedAt: now,
     createdAt: now,
     ownerWalletAddress: null,
+    intentId: null,
     ...overrides,
   };
 }

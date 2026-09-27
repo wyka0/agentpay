@@ -312,6 +312,7 @@ export async function verifyTrustedPayment(input: {
       confirmedAt: now,
       createdAt: now,
       ownerWalletAddress: intent.ownerWalletAddress,
+      intentId: intent.id,
     };
 
     const inserted = await repository.insertPayment(record);

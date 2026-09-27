@@ -141,6 +141,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       ownerWalletAddress: serviceRequest.ownerWalletAddress,
       confirmedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
+      intentId: serviceRequest.paymentIntentId,
     } as const;
 
     await trustedRepo.insertPayment(demoTrustedPayment);

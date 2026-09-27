@@ -282,6 +282,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       confirmedAt: now,
       createdAt: now,
       ownerWalletAddress: intent.ownerWalletAddress,
+      intentId: intent.id,
     };
 
     const inserted = await repository.insertPayment(record);

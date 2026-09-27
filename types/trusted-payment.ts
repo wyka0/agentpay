@@ -34,6 +34,11 @@ export interface TrustedPayment {
    * Inherited from the verified intent. `null` for the demo flow.
    */
   ownerWalletAddress: EvmAddress | null;
+  /**
+   * The intent ID that this payment was verified for.
+   * Allows looking up payments by the original intent.
+   */
+  intentId: string | null;
 }
 
 /**

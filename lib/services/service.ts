@@ -417,13 +417,27 @@ export async function rejectServiceRequest(
     );
   }
 
-  // Ensure no trusted payment exists
+  // Ensure no trusted payment exists on the request itself
   if (request.trustedPaymentId) {
     throw new ServiceRequestError(
       "Cannot reject request with a verified payment.",
       "TRUSTED_PAYMENT_EXISTS",
       409
     );
+  }
+
+  // CRITICAL: Check if the payment intent already has a confirmed trusted payment.
+  // This prevents rejecting a request whose payment was recovered but not yet linked to the request.
+  if (request.paymentIntentId) {
+    const trustedRepo = await getTrustedRepository();
+    const existingPayment = await trustedRepo.findByIntentId(request.paymentIntentId);
+    if (existingPayment && existingPayment.status === "confirmed") {
+      throw new ServiceRequestError(
+        "Cannot reject request: payment has already been confirmed and recorded in the trusted ledger.",
+        "PAYMENT_ALREADY_CONFIRMED",
+        409
+      );
+    }
   }
 
   // Transition to rejected
