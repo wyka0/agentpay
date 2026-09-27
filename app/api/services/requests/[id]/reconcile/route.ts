@@ -1,21 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { applySecurityHeaders, guardJsonRequest } from "@/lib/security";
-import { getOptionalWallet } from "@/lib/auth";
+import { applySecurityHeaders } from "@/lib/security";
 import { logSecurityEvent } from "@/lib/security/logger";
-import { hashKey } from "@/lib/security/rate-limit";
+import { guardAgentRequest } from "@/lib/agent/guard";
 
 import { getTrustedRepository } from "@/lib/payments/server/factory";
 import { createPostgresServiceRequestRepository } from "@/lib/services/postgres";
 import { ServiceRequestError } from "@/lib/services/service";
 import { TrustedLedgerUnavailableError } from "@/lib/payments/server/service";
 
-import type { EvmAddress, TrustedPayment, PaymentIntent } from "@/types";
-import type { SpendingSummary } from "@/lib/agent/policy";
 import type { ServiceRequest, ServiceRequestStatus } from "@/types/service-request";
-
-/**
- * POST /api/services/requests/:id/reconcile
 
 /**
  * POST /api/services/requests/:id/reconcile
@@ -26,7 +20,7 @@ import type { ServiceRequest, ServiceRequestStatus } from "@/types/service-reque
  *
  * This is a reconciliation endpoint for operational recovery.
  *
- * Authentication: requires authenticated owner wallet.
+ * Authentication: requires valid agent API key (owner of the request).
  *
  * Request body:
  * {
@@ -58,13 +52,13 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const guard = await guardJsonRequest<{ expectedStatus: string }>(request, {
-    policy: "SERVICE_FULFILL",
-    maxBytes: 1024,
+  // Use agent authentication (API key)
+  const agentGuard = await guardAgentRequest(request, {
+    policy: "AGENT_REQUEST",
   });
-  if (!guard.ok) return guard.response;
+  if (!agentGuard.ok) return agentGuard.response;
 
-  const { expectedStatus } = guard.body;
+  const { expectedStatus } = await request.json();
   if (expectedStatus !== "payment_confirmed") {
     const response = NextResponse.json(
       { ok: false, error: { code: "INVALID_STATUS", message: "Only payment_confirmed is supported for reconciliation." } },
@@ -85,22 +79,14 @@ export async function POST(
     return response;
   }
 
-  const authenticatedWallet = await getOptionalWallet(request);
-  if (!authenticatedWallet) {
-    const response = NextResponse.json(
-      { ok: false, error: { code: "UNAUTHENTICATED", message: "Authentication required." } },
-      { status: 401 },
-    );
-    applySecurityHeaders(response);
-    return response;
-  }
+  const authenticatedWallet = agentGuard.agent.ownerWalletAddress;
 
   try {
     const repository = createPostgresServiceRequestRepository(process.env.DATABASE_URL!);
 
     // Get the request
-    const request = await repository.getById(id);
-    if (!request) {
+    const serviceRequest = await repository.getById(id);
+    if (!serviceRequest) {
       const response = NextResponse.json(
         { ok: false, error: { code: "NOT_FOUND", message: "Service request not found." } },
         { status: 404 },
@@ -109,8 +95,8 @@ export async function POST(
       return response;
     }
 
-    // Ownership check
-    if (request.ownerWalletAddress?.toLowerCase() !== authenticatedWallet.toLowerCase()) {
+    // Ownership check - agent must own the request
+    if (serviceRequest.ownerWalletAddress?.toLowerCase() !== authenticatedWallet.toLowerCase()) {
       const response = NextResponse.json(
         { ok: false, error: { code: "FORBIDDEN", message: "You are not authorised to reconcile this request." } },
         { status: 403 },
@@ -120,9 +106,9 @@ export async function POST(
     }
 
     // Check current state
-    if (request.status !== "rejected") {
+    if (serviceRequest.status !== "rejected") {
       const response = NextResponse.json(
-        { ok: false, error: { code: "INVALID_STATE", message: `Cannot reconcile request in state "${request.status}". Only rejected requests can be reconciled.` } },
+        { ok: false, error: { code: "INVALID_STATE", message: `Cannot reconcile request in state "${serviceRequest.status}". Only rejected requests can be reconciled.` } },
         { status: 422 },
       );
       applySecurityHeaders(response);
@@ -131,7 +117,7 @@ export async function POST(
 
     // Verify there's a confirmed trusted payment for this intent
     const trustedRepo = await getTrustedRepository();
-    if (!request.paymentIntentId) {
+    if (!serviceRequest.paymentIntentId) {
       const response = NextResponse.json(
         { ok: false, error: { code: "NO_INTENT", message: "Request has no payment intent." } },
         { status: 422 },
@@ -140,7 +126,7 @@ export async function POST(
       return response;
     }
 
-    const intent = await trustedRepo.getIntent(request.paymentIntentId);
+    const intent = await trustedRepo.getIntent(serviceRequest.paymentIntentId);
     if (!intent) {
       const response = NextResponse.json(
         { ok: false, error: { code: "INTENT_NOT_FOUND", message: "Payment intent not found." } },
@@ -160,7 +146,7 @@ export async function POST(
     }
 
     // Check for confirmed trusted payment
-    const existingPayment = await trustedRepo.findByIntentId(request.paymentIntentId);
+    const existingPayment = await trustedRepo.findByIntentId(serviceRequest.paymentIntentId);
     if (!existingPayment || existingPayment.status !== "confirmed") {
       const response = NextResponse.json(
         { ok: false, error: { code: "NO_CONFIRMED_PAYMENT", message: "No confirmed trusted payment found for this intent." } },
@@ -173,7 +159,7 @@ export async function POST(
     // Verify the trusted payment matches the original intent
     const trustedPayment = existingPayment;
     if (
-      trustedPayment.recipient.toLowerCase() !== request.ownerWalletAddress?.toLowerCase() ||
+      trustedPayment.recipient.toLowerCase() !== serviceRequest.ownerWalletAddress?.toLowerCase() ||
       trustedPayment.amount.amount !== 0.1 ||
       trustedPayment.currency !== "USDC"
     ) {
@@ -188,7 +174,7 @@ export async function POST(
     // Update request to payment_confirmed state
     const now = new Date().toISOString();
     const updatedRequest: ServiceRequest = {
-      ...request,
+      ...serviceRequest,
       status: "payment_confirmed" as ServiceRequestStatus,
       error: null,
       updatedAt: new Date().toISOString(),
@@ -200,8 +186,8 @@ export async function POST(
 
     logSecurityEvent({
       kind: "SERVICE_REQUEST_RECONCILED",
-      keyHash: "request",
-      detail: `requestId=${id} intentId=${request.paymentIntentId} trustedPaymentId=${trustedPayment.id}`,
+      keyHash: agentGuard.identityKey,
+      detail: `requestId=${id} intentId=${serviceRequest.paymentIntentId} trustedPaymentId=${trustedPayment.id}`,
     });
 
     const response = NextResponse.json({

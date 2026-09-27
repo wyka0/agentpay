@@ -343,7 +343,6 @@ describe("authentication boundary — server-only auth, no private keys, no brow
       "app/api/payments/recover/route.ts",
       "app/api/payments/verify/route.ts",
       "app/api/services/requests/[id]/fulfill/route.ts",
-      "app/api/services/requests/[id]/reconcile/route.ts",
       "app/api/services/requests/[id]/reject/route.ts",
       "app/api/services/requests/[id]/result/route.ts",
       "app/api/services/requests/[id]/route.ts",
@@ -427,9 +426,9 @@ describe("Sprint 10 security boundary", () => {
   });
 
   it("every API route that performs state changes goes through the security guard", () => {
-    // POST routes under app/api/ must call either guardJsonRequest or
-    // guardReadRequest (the only sanctioned entry points). This
-    // guarantees rate limiting, body caps, and origin enforcement.
+    // POST routes under app/api/ must call either guardJsonRequest,
+    // guardReadRequest, or guardAgentRequest (the only sanctioned entry
+    // points). This guarantees rate limiting, body caps, and origin enforcement.
     const routes = [
       ...readTree("app/api/auth"),
       ...readTree("app/api/payments"),
@@ -437,7 +436,7 @@ describe("Sprint 10 security boundary", () => {
     ].filter((f) => f.path.endsWith("route.ts"));
 
     for (const route of routes) {
-      const usesGuard = /guardJsonRequest|guardReadRequest/.test(route.source);
+      const usesGuard = /guardJsonRequest|guardReadRequest|guardAgentRequest/.test(route.source);
       expect(usesGuard, `${route.path} does not use the security guard`).toBe(true);
     }
   });
