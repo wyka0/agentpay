@@ -8,6 +8,7 @@ import { formatMoney } from "@/lib/money";
 import { sendUsdcTransfer } from "@/lib/wallet/payment";
 import { getActiveArcNetwork } from "@/lib/arc/network";
 import { getInjectedProvider } from "@/lib/wallet/client";
+import { verifyTrustedTransaction } from "@/lib/payments/client";
 import type { ServiceRequest } from "@/types/service-request";
 import type { Currency } from "@/types/money";
 import type { EvmAddress } from "@/types/money";
@@ -130,6 +131,15 @@ export function PendingAgentRequests() {
         });
 
         if (!sent.ok) throw new Error(sent.error.message);
+
+        // Verify the transaction on Arc and record in trusted ledger
+        const verifyResult = await verifyTrustedTransaction({
+          intentId: intent.id,
+          txHash: sent.transactionHash,
+        });
+        if (!verifyResult.ok) throw new Error(verifyResult.code === "ALREADY_RECORDED" 
+          ? "Transaction already recorded" 
+          : verifyResult.message);
 
         // Verify the transaction with the trusted ledger
         const fulfillResponse = await fetch(`/api/services/requests/${request.id}/fulfill`, {
