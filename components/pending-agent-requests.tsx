@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/components/auth-provider";
 import { useWallet } from "@/components/wallet-provider";
 import { shortenAddress } from "@/lib/wallet/state";
@@ -23,13 +24,13 @@ const STATUS_BADGE =
 const MODAL_OVERLAY =
   "fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 isolation-isolate";
 const MODAL_BOX =
-  "w-full max-w-[640px] max-h-[calc(100vh-32px)] bg-background border-2 border-foreground p-6 isolation-isolate z-[100] relative animate-scale-fade overflow-y-auto";
+  "w-full max-w-[640px] max-h-[calc(100vh-32px)] bg-[#F2F1EA] border-2 border-foreground p-6 isolation-isolate z-[100] relative animate-scale-fade overflow-y-auto";
 const MODAL_TITLE =
   "text-sm font-bold tracking-[0.2em] uppercase text-foreground mb-3";
 const MODAL_TEXT =
   "text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-4";
 const MODAL_REQUEST =
-  "border-2 border-foreground p-4 mb-6 bg-background";
+  "border-2 border-foreground p-4 mb-6 bg-white";
 const MODAL_ACTIONS =
   "flex items-center gap-2 justify-end mt-6 pt-4 border-t-2 border-foreground";
 const MODAL_BUTTON_PRIMARY =
@@ -131,7 +132,7 @@ function RejectModal({ isOpen, onClose, onConfirm, isLoading, request }: RejectM
 
   if (!isOpen || !request) return null;
 
-  return (
+  const modalContent = (
     <div className={MODAL_OVERLAY} onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="reject-modal-title" aria-describedby="reject-modal-desc">
       <div ref={modalRef} className={MODAL_BOX} onClick={(e) => e.stopPropagation()}>
         <h2 id="reject-modal-title" className={MODAL_TITLE}>CONFIRM REJECTION</h2>
@@ -169,6 +170,9 @@ function RejectModal({ isOpen, onClose, onConfirm, isLoading, request }: RejectM
       </div>
     </div>
   );
+
+  // Portal to document.body to avoid any parent stacking context issues
+  return createPortal(modalContent, document.body);
 }
 
 export function PendingAgentRequests() {
