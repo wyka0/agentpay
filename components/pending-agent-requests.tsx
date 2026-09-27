@@ -24,7 +24,7 @@ const STATUS_BADGE =
 const MODAL_OVERLAY =
   "fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 isolation-isolate";
 const MODAL_BOX =
-  "w-full max-w-[640px] max-h-[calc(100vh-32px)] bg-[#F2F1EA] border-2 border-foreground p-6 isolation-isolate z-[100] relative animate-scale-fade overflow-y-auto";
+  "w-full max-w-[640px] max-h-[calc(100vh-32px)] bg-[#F2F1EA] border-2 border-foreground p-6 isolation-isolate z-[100] relative animate-scale-fade overflow-y-auto [background-image:radial-gradient(circle,#c9c7bc_1px,transparent_1px)] [background-size:22px_22px]";
 const MODAL_TITLE =
   "text-sm font-bold tracking-[0.2em] uppercase text-foreground mb-3";
 const MODAL_TEXT =
