@@ -69,6 +69,7 @@ describe("security boundary — the agent cannot reach the wallet", () => {
     expect(senders.map((file) => file.path).sort()).toEqual([
       "components/agent-execution-provider.tsx",
       "components/payment-flow-provider.tsx",
+      "components/pending-agent-requests.tsx",
     ].sort());
   });
 
@@ -180,6 +181,7 @@ describe("persistence boundary — one owner of storage", () => {
       .sort();
     expect(consumers).toEqual([
       "app/api/agent/v1/demo/complete-payment/route.ts",
+      "app/api/agent/v1/requests/[id]/intent/route.ts",
       "app/api/agent/v1/requests/route.ts",
       "app/api/health/route.ts",
       "app/api/payments/history/route.ts",
@@ -328,6 +330,7 @@ describe("authentication boundary — server-only auth, no private keys, no brow
       .sort();
     expect(serverConsumers).toEqual([
       "app/api/agent/v1/pending/route.ts",
+      "app/api/agent/v1/requests/[id]/intent/route.ts",
       "app/api/auth/challenge/route.ts",
       "app/api/auth/logout/route.ts",
       "app/api/auth/session/route.ts",

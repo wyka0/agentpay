@@ -2,10 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { useWallet } from "@/components/wallet-provider";
 import { shortenAddress } from "@/lib/wallet/state";
 import { formatMoney } from "@/lib/money";
+import { sendUsdcTransfer } from "@/lib/wallet/payment";
+import { getActiveArcNetwork } from "@/lib/arc/network";
+import { getInjectedProvider } from "@/lib/wallet/client";
 import type { ServiceRequest } from "@/types/service-request";
 import type { Currency } from "@/types/money";
+import type { EvmAddress } from "@/types/money";
 
 const PRIMARY =
   "border-2 border-foreground bg-foreground px-4 py-2 text-[10px] font-bold tracking-[0.2em] uppercase text-background transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60";
@@ -29,6 +34,7 @@ interface PendingAgentRequest {
 
 export function PendingAgentRequests() {
   const auth = useAuth();
+  const wallet = useWallet();
   const [pendingRequests, setPendingRequests] = useState<PendingAgentRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,17 +90,64 @@ export function PendingAgentRequests() {
         const data = await response.json();
         if (!data.ok) throw new Error(data.error?.message ?? "Failed to complete demo payment");
       } else {
-        // In production, redirect to payment approval flow
-        // The actual payment is done via the wallet in the service request panel
-        window.location.href = `/app?approve=${request.id}`;
-        return;
+        // Fetch the payment intent details
+        const intentResponse = await fetch(`/api/agent/v1/requests/${request.id}/intent`, {
+          method: "GET",
+          headers: { "content-type": "application/json" },
+          credentials: "include",
+        });
+        const intentData = await intentResponse.json();
+        if (!intentData.ok) throw new Error(intentData.error?.message ?? "Failed to fetch payment intent");
+
+        const intent = intentData.intent;
+
+        // Verify wallet is connected and on correct network
+        const { connection, network, session } = wallet;
+        const provider = getInjectedProvider();
+        if (connection !== "connected" || !provider) {
+          throw new Error("Connect a wallet before approving a payment.");
+        }
+        if (intent.chainId !== network.chainId) {
+          throw new Error(`Switch your wallet to ${network.label} (chain ${network.chainId}) before approving.`);
+        }
+
+        // Prepare the payment request for the wallet
+        const paymentRequest = {
+          id: intent.id,
+          agentId: request.id, // Using request ID as agent reference
+          serviceId: request.id, // Using request ID as service reference
+          recipient: intent.recipient,
+          amount: { amount: intent.amount.amount, currency: intent.currency },
+          currency: intent.currency,
+        };
+
+        // Submit through the wallet
+        const sent = await sendUsdcTransfer({
+          provider: provider!,
+          network: getActiveArcNetwork(),
+          request: paymentRequest,
+          from: session.wallet.address as EvmAddress,
+        });
+
+        if (!sent.ok) throw new Error(sent.error.message);
+
+        // Verify the transaction with the trusted ledger
+        const fulfillResponse = await fetch(`/api/services/requests/${request.id}/fulfill`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          credentials: "include",
+        });
+        const fulfillData = await fulfillResponse.json();
+        if (!fulfillData.ok) throw new Error(fulfillData.error?.message ?? "Failed to verify payment");
+
+        setError(null);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to approve payment");
       return;
     }
     fetchPending();
-  }, [demoMode, fetchPending]);
+  }, [demoMode, fetchPending, wallet]);
 
   const handleDemoModeToggle = () => {
     setDemoMode((prev) => !prev);
