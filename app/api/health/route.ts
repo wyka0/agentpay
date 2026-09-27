@@ -5,6 +5,13 @@ import { validateEnvironment } from "@/lib/config/validation";
 import { hasDurableAuth, getAuthSessionRepository } from "@/lib/auth";
 import { applySecurityHeaders, getServerRuntime } from "@/lib/security";
 
+/** Determine if a Neon connection string uses PgBouncer pooling. */
+function looksPooled(url?: string): boolean {
+  if (!url) return false;
+  // Neon pooled URLs typically contain pooler endpoints
+  return url.includes("-pooler.") || url.includes("pgbouncer") || url.includes("pooler");
+}
+
 /**
  * GET /api/health
  *
@@ -31,15 +38,44 @@ export async function GET(): Promise<NextResponse> {
   const authStatus = await checkAuth();
   const envValidation = validateEnvironment();
 
+  // Collect database selection diagnostics (sanitized)
+  const nonPoolingUrl = process.env.POSTGRES_URL_NON_POOLING?.trim();
+  const unpooledUrl = process.env.DATABASE_URL_UNPOOLED?.trim();
+  const pooledUrl = process.env.DATABASE_URL?.trim();
+
+  const selectedSource =
+    nonPoolingUrl ? "POSTGRES_URL_NON_POOLING" :
+    unpooledUrl ? "DATABASE_URL_UNPOOLED" :
+    pooledUrl ? "DATABASE_URL" : "NONE";
+
+  const selectedSourcePresent = Boolean(
+    nonPoolingUrl || unpooledUrl || pooledUrl
+  );
+
+  const selectedSourceLooksPooled = selectedSource === "DATABASE_URL"
+    ? looksPooled(pooledUrl)
+    : selectedSource === "DATABASE_URL_UNPOOLED"
+      ? looksPooled(unpooledUrl)
+      : selectedSource === "POSTGRES_URL_NON_POOLING"
+        ? looksPooled(nonPoolingUrl)
+        : false;
+
   const response = NextResponse.json({
     ok: true,
     application: "alive",
     trustedLedger: ledgerStatus,
     authSessions: authStatus,
+    database: {
+      driver: "pg",
+      selectedSource,
+      selectedSourcePresent,
+      selectedSourceLooksPooled,
+      poolCount: 5, // service-request, service-result, trusted-ledger, auth-session, agent-registry
+      repositoriesUsingFactory: 5,
+    },
     environment: {
       ok: envValidation.ok,
       missingRequiredCount: envValidation.missingRequired.length,
-      // Names only — never values.
       missingRequired: envValidation.missingRequired.map((s) => s.split(" ")[0]),
       warnings: envValidation.warnings,
     },

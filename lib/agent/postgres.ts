@@ -8,6 +8,13 @@ import {
   type AgentRepository,
 } from "./repository";
 
+interface PoolConfigExtended {
+  connectionString?: string;
+  max?: number;
+  statement_cache_size?: number;
+  [key: string]: unknown;
+}
+
 /**
  * Durable PostgreSQL adapter for the agent registry.
  *
@@ -62,7 +69,9 @@ function rowToAgent(row: AgentRow): AgentIdentity {
 }
 
 export function createPostgresAgentRepository(connectionString: string): AgentRepository {
-  const pool = new Pool({ connectionString, max: 5 });
+  const looksPooled = connectionString.includes("-pooler.") || connectionString.includes("pgbouncer") || connectionString.includes("pooler");
+  console.log("[DATABASE_SELECTION] { source: \"agent-registry\", present: true, looksPooled: " + looksPooled + " }");
+  const pool = new Pool({ connectionString, max: 5, statement_cache_size: 0 } as PoolConfigExtended);
   let schemaReady: Promise<void> | null = null;
 
   function ensureSchema(): Promise<void> {
@@ -80,7 +89,8 @@ export function createPostgresAgentRepository(connectionString: string): AgentRe
 
   async function query<T>(text: string, values: unknown[] = []): Promise<T[]> {
     await ensureSchema();
-    const result = await pool.query(text, values);
+    const config = { text, values };
+    const result = await pool.query(config);
     return result.rows as T[];
   }
 
