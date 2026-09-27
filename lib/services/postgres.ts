@@ -172,7 +172,10 @@ export function createPostgresServiceRequestRepository(connectionString: string)
       await query(
         `INSERT INTO agentpay_service_requests
           (id, agent_id, service_id, service_name, input, payment_intent_id, trusted_payment_id, tx_hash, status, error, created_at, updated_at, fulfilled_at, owner_wallet_address, idempotency_key)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+         VALUES (
+           $1, $2, $3::text, $4, $5::jsonb, $6, $7, $8, $9, $10,
+           $11::timestamptz, $12::timestamptz, $13::timestamptz, $14, $15
+         )`,
         [
           request.id,
           request.agentId,
@@ -220,9 +223,9 @@ export function createPostgresServiceRequestRepository(connectionString: string)
     async update(request: ServiceRequest) {
       await query(
         `UPDATE agentpay_service_requests
-         SET service_id = $2, service_name = $3, input = $3, payment_intent_id = $4, trusted_payment_id = $5,
-             tx_hash = $6, status = $7, error = $8, updated_at = $9, fulfilled_at = $10,
-             owner_wallet_address = $11, idempotency_key = $12
+         SET service_id = $2::text, service_name = $3, input = $4::jsonb, payment_intent_id = $5, trusted_payment_id = $6,
+             tx_hash = $7, status = $8, error = $9, updated_at = $10::timestamptz, fulfilled_at = $11::timestamptz,
+             owner_wallet_address = $12, idempotency_key = $13
          WHERE id = $1`,
         [
           request.id,

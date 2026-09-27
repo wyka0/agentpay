@@ -189,7 +189,10 @@ export function createPostgresTrustedRepository(connectionString: string): Trust
         `INSERT INTO agentpay_payment_intents
           (id, agent_id, service_id, service_name, sender, recipient, amount, amount_base_units,
            currency, chain_id, token_address, status, tx_hash, owner_wallet_address, created_at, expires_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+         VALUES (
+           $1, $2, $3::text, $4, $5::text, $6, $7::numeric, $8, $9, $10::integer,
+           $11, $12, $13::text, $14::text, $15::timestamptz, $16::timestamptz
+         )`,
         [
           intent.id,
           intent.agentId,
@@ -248,7 +251,10 @@ export function createPostgresTrustedRepository(connectionString: string): Trust
         `INSERT INTO agentpay_trusted_payments
           (id, tx_hash, chain_id, token_address, agent_id, service_id, service_name, sender,
            recipient, amount, amount_base_units, currency, status, block_number, owner_wallet_address, confirmed_at, created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+         VALUES (
+           $1, $2, $3::integer, $4, $5, $6::text, $7, $8, $9,
+           $10::numeric, $11, $12, $13, $14, $15, $16::timestamptz, $17::timestamptz
+         )
          ON CONFLICT (tx_hash) DO NOTHING
          RETURNING *`,
         [
