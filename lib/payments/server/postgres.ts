@@ -253,11 +253,29 @@ export function createPostgresTrustedRepository(connectionString: string): Trust
     },
 
     async findByIntentId(intentId) {
+      // First try to find by intent_id (for new payments)
       const rows = await query<PaymentRow>(
         `SELECT * FROM agentpay_trusted_payments WHERE intent_id = $1 LIMIT 1`,
         [intentId],
       );
-      return rows[0] ? rowToPayment(rows[0]) : null;
+      if (rows[0]) return rowToPayment(rows[0]);
+
+      // Fallback: find by agent_id and service_id matching the intent
+      // This handles existing payments created before the intent_id column was added
+      const intentRows = await query<PaymentRow>(
+        `SELECT * FROM agentpay_payment_intents WHERE id = $1 LIMIT 1`,
+        [intentId],
+      );
+      if (!intentRows[0]) return null;
+
+      const intent = intentRows[0];
+      const fallbackRows = await query<PaymentRow>(
+        `SELECT * FROM agentpay_trusted_payments 
+         WHERE agent_id = $1 AND service_id = $2 AND (intent_id IS NULL OR intent_id = $3)
+         ORDER BY confirmed_at DESC LIMIT 1`,
+        [intent.agent_id, intent.service_id, intentId],
+      );
+      return fallbackRows[0] ? rowToPayment(fallbackRows[0]) : null;
     },
 
     async insertPayment(record): Promise<InsertPaymentResult> {
