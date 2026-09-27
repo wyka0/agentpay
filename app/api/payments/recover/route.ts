@@ -77,27 +77,17 @@ interface TrustedPaymentRepository {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const guard = await guardJsonRequest<unknown>(request, {
+  const guard = await guardJsonRequest<{
+    intentId: string;
+    txHash: string;
+    requestId?: string;
+  }>(request, {
     policy: "PAYMENT_VERIFY",
     maxBytes: 2 * 1024,
   });
   if (!guard.ok) return guard.response;
 
-  const bodyResult = await request.json().catch(() => null);
-  if (!bodyResult || typeof bodyResult !== "object") {
-    const response = NextResponse.json(
-      { ok: false, error: { code: "INVALID_JSON", message: "Invalid JSON body." } },
-      { status: 400 },
-    );
-    applySecurityHeaders(response);
-    return response;
-  }
-
-  const { intentId, txHash, requestId } = bodyResult as {
-    intentId?: string;
-    txHash?: string;
-    requestId?: string;
-  };
+  const { intentId, txHash, requestId } = guard.body;
 
   if (!intentId || typeof intentId !== "string" || !/^pay_[A-Za-z0-9_-]+$/.test(intentId)) {
     const response = NextResponse.json(
