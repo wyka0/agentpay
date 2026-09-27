@@ -331,7 +331,7 @@ export function PendingAgentRequests() {
       setRejectTarget(null);
     }
     fetchPending();
-  }, [fetchPending]);
+  }, [fetchPending, rejectTarget]);
 
   const handleRejectCancel = useCallback(() => {
     setRejectModalOpen(false);
