@@ -152,12 +152,13 @@ export async function POST(
     // This handles cases where intent_id is NULL or intent agent_id/service_id don't match
     if (!existingPayment || existingPayment.status !== "confirmed") {
       if (typeof trustedRepo.findConfirmedPaymentForRequest === "function") {
+        // Use intent's recipient for the query, not the service request's owner wallet
         existingPayment = await trustedRepo.findConfirmedPaymentForRequest(
           serviceRequest.agentId,
           serviceRequest.serviceId,
-          serviceRequest.ownerWalletAddress ?? "",
-          0.1,
-          "USDC"
+          intent.recipient,
+          intent.amount.amount,
+          intent.currency
         );
       }
     }
@@ -174,9 +175,9 @@ export async function POST(
     // Verify the trusted payment matches the original intent
     const trustedPayment = existingPayment;
     if (
-      trustedPayment.recipient.toLowerCase() !== serviceRequest.ownerWalletAddress?.toLowerCase() ||
-      trustedPayment.amount.amount !== 0.1 ||
-      trustedPayment.currency !== "USDC"
+      trustedPayment.recipient.toLowerCase() !== intent.recipient.toLowerCase() ||
+      trustedPayment.amount.amount !== intent.amount.amount ||
+      trustedPayment.currency !== intent.currency
     ) {
       const response = NextResponse.json(
         { ok: false, error: { code: "PAYMENT_MISMATCH", message: "Trusted payment does not match expected values." } },
