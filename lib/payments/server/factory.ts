@@ -20,7 +20,8 @@ export function hasDurableLedger(): boolean {
 export async function getTrustedRepository(): Promise<TrustedPaymentRepository> {
   if (singleton) return singleton;
 
-  const url = process.env.DATABASE_URL?.trim();
+  // Use unpooled connection for PostgreSQL to avoid PgBouncer prepared statement conflicts
+  const url = process.env.DATABASE_URL_UNPOOLED?.trim() ?? process.env.DATABASE_URL?.trim();
   if (url) {
     const { createPostgresTrustedRepository } = await import("./postgres");
     singleton = createPostgresTrustedRepository(url);

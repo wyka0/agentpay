@@ -26,7 +26,8 @@ export function hasDurableServiceRequests(): boolean {
 export async function getServiceRequestRepo(): Promise<ServiceRequestRepository> {
   if (serviceRequestRepo) return serviceRequestRepo;
 
-  const url = process.env.DATABASE_URL?.trim();
+  // Use unpooled connection for PostgreSQL to avoid PgBouncer prepared statement conflicts
+  const url = process.env.DATABASE_URL_UNPOOLED?.trim() ?? process.env.DATABASE_URL?.trim();
   if (url) {
     const { createPostgresServiceRequestRepository } = await import("./postgres");
     serviceRequestRepo = createPostgresServiceRequestRepository(url);
@@ -40,7 +41,8 @@ export async function getServiceRequestRepo(): Promise<ServiceRequestRepository>
 export async function getServiceResultRepo(): Promise<ServiceResultRepository> {
   if (serviceResultRepo) return serviceResultRepo;
 
-  const url = process.env.DATABASE_URL?.trim();
+  // Use unpooled connection for PostgreSQL to avoid PgBouncer prepared statement conflicts
+  const url = process.env.DATABASE_URL_UNPOOLED?.trim() ?? process.env.DATABASE_URL?.trim();
   if (url) {
     const { createPostgresServiceResultRepository } = await import("./postgres");
     serviceResultRepo = createPostgresServiceResultRepository(url);
