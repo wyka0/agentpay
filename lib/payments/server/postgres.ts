@@ -260,7 +260,7 @@ export function createPostgresTrustedRepository(connectionString: string): Trust
       );
       if (rows[0]) return rowToPayment(rows[0]);
 
-      // Fallback: find by agent_id and service_id matching the intent
+      // Fallback 1: find by agent_id and service_id matching the intent
       // This handles existing payments created before the intent_id column was added
       const intentRows = await query<PaymentRow>(
         `SELECT * FROM agentpay_payment_intents WHERE id = $1 LIMIT 1`,
@@ -275,7 +275,19 @@ export function createPostgresTrustedRepository(connectionString: string): Trust
          ORDER BY confirmed_at DESC LIMIT 1`,
         [intent.agent_id, intent.service_id, intentId],
       );
-      return fallbackRows[0] ? rowToPayment(fallbackRows[0]) : null;
+      if (fallbackRows[0]) return rowToPayment(fallbackRows[0]);
+
+      // Fallback 2: find by tx_hash from the consumed intent
+      // This handles payments where the intent was consumed but intent_id wasn't propagated
+      if (intent.tx_hash) {
+        const txHashRows = await query<PaymentRow>(
+          `SELECT * FROM agentpay_trusted_payments WHERE lower(tx_hash) = lower($1) LIMIT 1`,
+          [intent.tx_hash],
+        );
+        if (txHashRows[0]) return rowToPayment(txHashRows[0]);
+      }
+
+      return null;
     },
 
     async insertPayment(record): Promise<InsertPaymentResult> {
