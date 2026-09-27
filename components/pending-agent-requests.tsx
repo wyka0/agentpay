@@ -159,6 +159,30 @@ export function PendingAgentRequests() {
     fetchPending();
   }, [demoMode, fetchPending, wallet]);
 
+  const handleReject = useCallback(async (request: PendingAgentRequest) => {
+    setError(null);
+    // Confirm before rejecting
+    if (!confirm("Reject this payment request? The agent will not be able to use this payment intent.")) {
+      return;
+    }
+    setError(null);
+    try {
+      const response = await fetch(`/api/services/requests/${request.id}/reject`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ reason: "Payment request rejected by owner." }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error?.message ?? "Failed to reject payment request");
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reject payment request");
+      return;
+    }
+    fetchPending();
+  }, [fetchPending]);
+
   const handleDemoModeToggle = () => {
     setDemoMode((prev) => !prev);
   };
@@ -252,14 +276,24 @@ export function PendingAgentRequests() {
                   </div>
                   <div className="flex items-center gap-2">
                     {req.status === "payment_required" || req.status === "payment_pending" ? (
-                      <button
-                        className={PRIMARY}
-                        disabled={loading}
-                        onClick={() => handleApprove(req)}
-                        type="button"
-                      >
-                        Approve Payment
-                      </button>
+                      <>
+                        <button
+                          className={PRIMARY}
+                          disabled={loading}
+                          onClick={() => handleApprove(req)}
+                          type="button"
+                        >
+                          Approve Payment
+                        </button>
+                        <button
+                          className={SECONDARY}
+                          disabled={loading}
+                          onClick={() => handleReject(req)}
+                          type="button"
+                        >
+                          Reject Payment
+                        </button>
+                      </>
                     ) : req.status === "payment_confirmed" ? (
                       <button
                         className={PRIMARY}

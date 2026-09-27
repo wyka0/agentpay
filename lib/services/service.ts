@@ -8,6 +8,7 @@ import { getTrustedSpending } from "@/lib/payments/server/service";
 import { createPaymentId } from "@/lib/payments/id";
 import type { ServiceRequest, ServiceResult, CreateServiceRequestInput, ServiceRequestStatus } from "@/types/service-request";
 import type { TrustedPayment } from "@/types";
+import type { EvmAddress } from "@/types/money";
 import type { SpendingSummary } from "@/lib/agent/policy";
 
 /**
@@ -349,14 +350,92 @@ export async function listServiceResults(): Promise<ServiceResult[]> {
  */
 export const SERVICE_REQUEST_TRANSITIONS: Record<ServiceRequestStatus, readonly ServiceRequestStatus[]> = {
   requested: ["payment_required"],
-  payment_required: ["payment_pending", "failed"],
-  payment_pending: ["payment_confirmed", "failed"],
-  payment_confirmed: ["fulfillment_pending", "failed"],
+  payment_required: ["payment_pending", "failed", "rejected"],
+  payment_pending: ["payment_confirmed", "failed", "rejected"],
+  payment_confirmed: ["fulfillment_pending", "failed", "rejected"],
   fulfillment_pending: ["fulfilled", "failed"],
   fulfilled: [],
   failed: [],
+  rejected: [],
 };
 
 export function canTransitionServiceRequest(from: ServiceRequestStatus, to: ServiceRequestStatus): boolean {
   return SERVICE_REQUEST_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+/**
+ * Reject a service request.
+ *
+ * A request can only be rejected if it is in a rejectable state:
+ * - payment_required
+ * - payment_pending
+ *
+ * The request must not have:
+ * - a transaction hash (txHash)
+ * - a trusted payment ID
+ * - already been fulfilled/failed/rejected
+ *
+ * This is an atomic operation that uses the database to ensure
+ * the request is still in a rejectable state before transitioning.
+ */
+export async function rejectServiceRequest(
+  requestId: string,
+  ownerWalletAddress: EvmAddress,
+  reason?: string
+): Promise<ServiceRequest> {
+  const repo = await getRepo();
+  const request = await repo.getById(requestId);
+
+  if (!request) {
+    throw new ServiceRequestError("Service request not found.", "REQUEST_NOT_FOUND", 404);
+  }
+
+  // Check ownership
+  if (request.ownerWalletAddress?.toLowerCase() !== ownerWalletAddress.toLowerCase()) {
+    throw new ServiceRequestError(
+      "Not authorized to reject this request.",
+      "UNAUTHORIZED",
+      403
+    );
+  }
+
+  // Check if request is in a rejectable state
+  if (request.status !== "payment_required" && request.status !== "payment_pending") {
+    throw new ServiceRequestError(
+      `Cannot reject request in state "${request.status}".`,
+      "INVALID_STATE",
+      409
+    );
+  }
+
+  // Ensure no transaction has been submitted
+  if (request.txHash) {
+    throw new ServiceRequestError(
+      "Cannot reject request with an existing transaction hash.",
+      "TRANSACTION_EXISTS",
+      409
+    );
+  }
+
+  // Ensure no trusted payment exists
+  if (request.trustedPaymentId) {
+    throw new ServiceRequestError(
+      "Cannot reject request with a verified payment.",
+      "TRUSTED_PAYMENT_EXISTS",
+      409
+    );
+  }
+
+  // Transition to rejected
+  const now = new Date().toISOString();
+  const rejectedRequest: ServiceRequest = {
+    ...request,
+    status: "rejected",
+    error: reason ?? "Payment request rejected by owner.",
+    updatedAt: now,
+  };
+
+  await repo.update(rejectedRequest);
+
+  return rejectedRequest;
 }

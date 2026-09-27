@@ -79,12 +79,16 @@ export async function POST(
       applySecurityHeaders(response);
       return response;
     } catch (innerError) {
-      if (innerError instanceof ServiceRequestError) {
-        logSecurityEvent({
-          kind: "SERVICE_FULFILLMENT_REJECTED",
-          keyHash: hashKey(guard.identityKey),
-          detail: `code=${innerError.code}`,
-        });
+      if (innerError instanceof ServiceRequestError && innerError.code === "PAYMENT_NOT_VERIFIED") {
+        const request = await getServiceRequest(id);
+        if (request?.status === "rejected") {
+          const response = NextResponse.json(
+            { ok: false, error: { code: "REQUEST_REJECTED", message: "Request was rejected before payment verification." } },
+            { status: 409 },
+          );
+          applySecurityHeaders(response);
+          return response;
+        }
       }
       throw innerError;
     }

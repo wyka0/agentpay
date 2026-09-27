@@ -342,6 +342,7 @@ describe("authentication boundary — server-only auth, no private keys, no brow
       "app/api/payments/recover/route.ts",
       "app/api/payments/verify/route.ts",
       "app/api/services/requests/[id]/fulfill/route.ts",
+      "app/api/services/requests/[id]/reject/route.ts",
       "app/api/services/requests/[id]/result/route.ts",
       "app/api/services/requests/[id]/route.ts",
       "app/api/services/requests/route.ts",

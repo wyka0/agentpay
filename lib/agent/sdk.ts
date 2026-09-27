@@ -69,7 +69,7 @@ export interface RequestStatusResponse {
 
 export interface ResultResponse {
   ok: true;
-  status: "READY" | "NOT_READY";
+  status: "READY" | "NOT_READY" | "REJECTED";
   requestId: string;
   serviceRequestStatus?: string;
   result?: {
@@ -200,6 +200,13 @@ export class AgentPayClient {
       }
 
       if (result.status === "NOT_READY") {
+        if (result.serviceRequestStatus === "rejected") {
+          return {
+            ok: false,
+            error: { code: "REJECTED", message: "Payment request was rejected" },
+          };
+        }
+
         await new Promise((resolve) => setTimeout(resolve, intervalMs));
         continue;
       }

@@ -109,7 +109,7 @@ export async function GET(
     if (serviceRequest.status !== "fulfilled" && serviceRequest.status !== "failed") {
       const response = NextResponse.json({
         ok: true,
-        status: "NOT_READY",
+        status: serviceRequest.status === "rejected" ? "REJECTED" : "NOT_READY",
         requestId: serviceRequest.id,
         serviceRequestStatus: serviceRequest.status,
       });

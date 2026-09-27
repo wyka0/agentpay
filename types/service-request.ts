@@ -13,7 +13,8 @@ export type ServiceRequestStatus =
   | "payment_confirmed"
   | "fulfillment_pending"
   | "fulfilled"
-  | "failed";
+  | "failed"
+  | "rejected";
 
 export interface ServiceRequest {
   id: string;
