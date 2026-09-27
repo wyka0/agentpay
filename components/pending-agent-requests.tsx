@@ -21,17 +21,17 @@ const STATUS_BADGE =
   "inline-flex items-center gap-1.5 border px-1.5 py-0.5 text-[9px] font-bold tracking-[0.2em] uppercase";
 
 const MODAL_OVERLAY =
-  "fixed inset-0 bg-black/50 flex items-center justify-center z-50";
+  "fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4";
 const MODAL_BOX =
-  "w-full max-w-md bg-background border-2 border-foreground p-6";
+  "w-full max-w-[640px] bg-background border-2 border-foreground p-6 isolation-isolate z-50 relative animate-scale-fade";
 const MODAL_TITLE =
-  "text-sm font-bold tracking-[0.2em] uppercase text-foreground mb-4";
+  "text-sm font-bold tracking-[0.2em] uppercase text-foreground mb-3";
 const MODAL_TEXT =
-  "text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-6";
+  "text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-4";
 const MODAL_REQUEST =
-  "border-2 border-foreground p-4 mb-6";
+  "border-2 border-foreground p-4 mb-6 bg-background";
 const MODAL_ACTIONS =
-  "flex items-center gap-2 justify-end";
+  "flex items-center gap-2 justify-end mt-6 pt-4 border-t-2 border-foreground";
 const MODAL_BUTTON_PRIMARY =
   "border-2 border-foreground bg-foreground px-4 py-2 text-[10px] font-bold tracking-[0.2em] uppercase text-background transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60";
 const MODAL_BUTTON_SECONDARY =
@@ -68,13 +68,15 @@ function RejectModal({ isOpen, onClose, onConfirm, isLoading, request }: RejectM
         <p id="reject-modal-desc" className={MODAL_TEXT}>
           REJECT THIS PAYMENT REQUEST?
         </p>
-        <p className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-6">
+        <p className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-4 leading-relaxed">
           This will permanently reject this payment request. No USDC will be transferred and the requested service will not be fulfilled.
         </p>
         <div className={MODAL_REQUEST}>
-          <p className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-1">REQUEST</p>
-          <p className="font-mono text-sm text-accent">{request.serviceName}</p>
-          <p className="font-mono text-sm text-accent mt-1">{formatMoney(request.amount, request.currency)}</p>
+          <p className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase mb-2">REQUEST</p>
+          <div className="space-y-1">
+            <p className="font-mono text-sm text-accent overflow-wrap-anywhere">{request.serviceName}</p>
+            <p className="font-mono text-sm text-accent">{formatMoney(request.amount, request.currency)}</p>
+          </div>
         </div>
         <div className={MODAL_ACTIONS}>
           <button
