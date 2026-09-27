@@ -64,6 +64,9 @@ CREATE TABLE IF NOT EXISTS agentpay_trusted_payments (
   created_at TIMESTAMPTZ NOT NULL
 );
 
+-- Add intent_id column if it doesn't exist (migration for existing deployments)
+ALTER TABLE agentpay_trusted_payments ADD COLUMN IF NOT EXISTS intent_id TEXT;
+
 CREATE INDEX IF NOT EXISTS agentpay_payment_intents_owner_idx
   ON agentpay_payment_intents (owner_wallet_address);
 CREATE INDEX IF NOT EXISTS agentpay_trusted_payments_owner_idx
