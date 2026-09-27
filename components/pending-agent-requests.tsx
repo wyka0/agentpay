@@ -321,16 +321,18 @@ export function PendingAgentRequests() {
         body: JSON.stringify({ reason: "Payment request rejected by owner." }),
       });
       const data = await response.json();
-      if (!data.ok) throw new Error(data.error?.message ?? "Failed to reject payment request");
+      if (!response.ok || !data.ok) throw new Error(data.error?.message ?? "Failed to reject payment request");
       setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to reject payment request");
-    } finally {
+      fetchPending();
+      // Only close modal on SUCCESS
       setRejectLoading(false);
       setRejectModalOpen(false);
       setRejectTarget(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reject payment request");
+      setRejectLoading(false);
+      // Modal stays open on error
     }
-    fetchPending();
   }, [fetchPending, rejectTarget]);
 
   const handleRejectCancel = useCallback(() => {
