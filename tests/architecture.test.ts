@@ -186,6 +186,7 @@ describe("persistence boundary — one owner of storage", () => {
       "app/api/health/route.ts",
       "app/api/payments/history/route.ts",
       "app/api/payments/intents/route.ts",
+      "app/api/payments/recover/route.ts",
       "app/api/payments/verify/route.ts",
     ]);
   });
@@ -338,6 +339,7 @@ describe("authentication boundary — server-only auth, no private keys, no brow
       "app/api/health/route.ts",
       "app/api/payments/history/route.ts",
       "app/api/payments/intents/route.ts",
+      "app/api/payments/recover/route.ts",
       "app/api/payments/verify/route.ts",
       "app/api/services/requests/[id]/fulfill/route.ts",
       "app/api/services/requests/[id]/result/route.ts",
