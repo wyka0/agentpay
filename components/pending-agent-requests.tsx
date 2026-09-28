@@ -323,6 +323,7 @@ export function PendingAgentRequests() {
 
   const handleRejectConfirm = useCallback(async () => {
     if (!rejectTarget) return;
+    const rejectedId = rejectTarget.id;
     setRejectLoading(true);
     setError(null);
     try {
@@ -335,6 +336,8 @@ export function PendingAgentRequests() {
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error?.message ?? "Failed to reject payment request");
       setError(null);
+      // Optimistic update: immediately remove rejected request from local state
+      setPendingRequests((current) => current.filter((req) => req.id !== rejectedId));
       fetchPending();
       // Only close modal on SUCCESS
       setRejectLoading(false);
