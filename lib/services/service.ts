@@ -221,7 +221,7 @@ export async function fulfillServiceRequest(requestId: string): Promise<{
 
   try {
     // Execute service adapter
-    const adapter = getServiceAdapter(request.serviceId);
+    const adapter = await getServiceAdapter(request.serviceId);
     if (!adapter) {
       throw new ServiceRequestError("No adapter for service.", "NO_ADAPTER", 500);
     }

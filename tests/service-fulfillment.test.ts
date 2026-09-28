@@ -289,7 +289,7 @@ describe("Service Request Lifecycle", () => {
 
 describe("Service Adapters", () => {
   it("market-data returns structured output", async () => {
-    const adapter = getServiceAdapter("market-data");
+    const adapter = await getServiceAdapter("market-data");
     expect(adapter).toBeDefined();
 
     const output = await adapter!.execute({ symbol: "BTC" });
@@ -300,7 +300,7 @@ describe("Service Adapters", () => {
   });
 
   it("research-report returns structured output", async () => {
-    const adapter = getServiceAdapter("research-report");
+    const adapter = await getServiceAdapter("research-report");
     expect(adapter).toBeDefined();
 
     const output = await adapter!.execute({ topic: "DeFi", depth: "detailed" });
@@ -311,7 +311,7 @@ describe("Service Adapters", () => {
   });
 
   it("ai-summary returns structured output", async () => {
-    const adapter = getServiceAdapter("ai-summary");
+    const adapter = await getServiceAdapter("ai-summary");
     expect(adapter).toBeDefined();
 
     const output = await adapter!.execute({ text: "This is a long text that needs to be summarized." });
@@ -321,7 +321,7 @@ describe("Service Adapters", () => {
   });
 
   it("returns undefined for unknown service", async () => {
-    const adapter = getServiceAdapter("unknown-service");
+    const adapter = await getServiceAdapter("unknown-service");
     expect(adapter).toBeUndefined();
   });
 });

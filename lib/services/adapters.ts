@@ -1,4 +1,5 @@
 import type { ServiceAdapter } from "@/types/service-request";
+import { getMarketDataAdapter } from "./market-data/provider";
 
 /**
  * MARKET DATA — Demo fixture adapter
@@ -208,6 +209,14 @@ export const serviceAdapters: ReadonlyArray<ServiceAdapter<object, object>> = [
   aiSummaryAdapter,
 ];
 
-export function getServiceAdapter(serviceId: string): ServiceAdapter<object, object> | undefined {
+/**
+ * Get the service adapter for a given service ID.
+ * For "market-data", this returns the CoinGecko adapter if
+ * MARKET_DATA_PROVIDER=coingecko is set, otherwise the demo adapter.
+ */
+export async function getServiceAdapter(serviceId: string): Promise<ServiceAdapter<object, object> | undefined> {
+  if (serviceId === "market-data") {
+    return getMarketDataAdapter();
+  }
   return serviceAdapters.find((a) => a.serviceId === serviceId);
 }
