@@ -352,6 +352,26 @@ export function PendingAgentRequests() {
     setRejectTarget(null);
   }, []);
 
+  const handleFulfill = useCallback(async (request: PendingAgentRequest) => {
+    if (!request.intentId) return;
+    setError(null);
+    try {
+      // Directly call the fulfill endpoint - NO payment flow for already-confirmed requests
+      const response = await fetch(`/api/services/requests/${request.id}/fulfill`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error?.message ?? "Failed to fulfill service request");
+      setError(null);
+      fetchPending();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fulfill service request");
+    }
+  }, [fetchPending]);
+
   const handleDemoModeToggle = () => {
     setDemoMode((prev) => !prev);
   };
@@ -469,7 +489,7 @@ export function PendingAgentRequests() {
                           <button
                             className={PRIMARY}
                             disabled={loading}
-                            onClick={() => handleApprove(req)}
+                            onClick={() => handleFulfill(req)}
                             type="button"
                           >
                             Fulfill Service
