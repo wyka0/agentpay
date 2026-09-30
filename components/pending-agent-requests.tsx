@@ -374,15 +374,20 @@ export function PendingAgentRequests() {
             Review and approve payment requests from your registered external agents.
             Each request requires explicit human wallet approval.
           </p>
-          <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-            <input
-              type="checkbox"
-              checked={demoMode}
-              onChange={handleDemoModeToggle}
-              className="border-2 border-foreground bg-background px-2 py-1 text-[10px] font-mono uppercase"
-            />
-            <span className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
-              Demo Mode (simulate payment without real transaction)
+          <label className="flex flex-col items-start gap-2 text-sm text-foreground cursor-pointer">
+            <div className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={demoMode}
+                onChange={handleDemoModeToggle}
+                className="border-2 border-foreground bg-background px-2 py-1 text-[10px] font-mono uppercase"
+              />
+              <span className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
+                Demo Mode (simulate payment without real transaction)
+              </span>
+            </div>
+            <span className="text-[9px] tracking-[0.1em] text-muted-foreground/70 uppercase font-mono ml-4">
+              LOCAL DEMO — simulate the payment → fulfillment lifecycle without an on-chain transaction.
             </span>
           </label>
         </div>
