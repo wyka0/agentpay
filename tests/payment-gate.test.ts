@@ -20,6 +20,7 @@ const SERVICE: Service = {
   price: 0.1,
   currency: "USDC",
   active: true,
+  description: "Market data service",
 };
 
 const CONFIGURED = (serviceId: string): RecipientResolution => ({

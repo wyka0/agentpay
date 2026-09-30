@@ -11,11 +11,14 @@ import { listActiveServices, getService } from "@/lib/services/registry";
 import type { Service } from "@/types";
 import type { ServiceRequest, ServiceResult } from "@/types/service-request";
 import type { AgentExecutionState } from "@/lib/agent/execution";
+import { PipelineVisualization } from "@/components/pipeline-visualization";
 
 const PRIMARY_BTN =
-  "border-2 border-foreground bg-foreground px-4 py-2 text-[10px] font-bold tracking-[0.2em] uppercase text-background transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50";
+  "border-2 border-foreground bg-foreground px-5 py-3 text-[10px] font-bold tracking-[0.2em] uppercase text-background transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50";
 const SECONDARY_BTN =
-  "border border-foreground/40 px-4 py-2 text-[10px] font-bold tracking-[0.2em] uppercase text-muted-foreground transition-colors hover:border-foreground hover:text-foreground";
+  "border border-foreground/40 px-5 py-3 text-[10px] font-bold tracking-[0.2em] uppercase text-muted-foreground transition-colors hover:border-foreground hover:text-foreground";
+const SUCCESS_BTN =
+  "border-2 border-success bg-success px-5 py-3 text-[10px] font-bold tracking-[0.2em] uppercase text-success-foreground transition-colors hover:bg-success/90 disabled:cursor-not-allowed disabled:opacity-50";
 
 interface ServiceInputField {
   name: string;
@@ -172,7 +175,7 @@ export function ServiceRequestPanel() {
   // Phase 1: Service selection
   if (!requestCreated) {
     return (
-      <Card>
+      <Card variant="primary">
         <CardHeader action={<DemoBadge label="LOCAL DEMO" />} label="service.request" meta="007" />
         <CardBody className="p-0">
           {selectedService ? (
@@ -220,6 +223,7 @@ export function ServiceRequestPanel() {
       serviceRequest={serviceRequest}
       serviceResult={serviceResult}
       resultStatus={resultStatus}
+      setResultStatus={setResultStatus}
       state={state}
       isSubmitting={isSubmitting}
       onExecute={handleExecute}
@@ -234,32 +238,37 @@ export function ServiceRequestPanel() {
 
 function ServiceList({ services, onSelect }: { services: readonly Service[]; onSelect: (id: string) => void }) {
   return (
-    <div className="flex flex-col gap-3 p-4">
+    <div className="flex flex-col gap-4 p-5 lg:p-6">
       <p className="text-sm font-bold uppercase">SELECT A SERVICE</p>
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-3">
         {services.map((service, index) => (
           <li
             key={service.id}
-            className={`flex items-center justify-between gap-3 px-4 py-3 ${
+            className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-4 py-4 ${
               index < services.length - 1 ? "border-b border-border" : ""
             }`}
           >
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-bold uppercase">{service.name}</p>
-              <p className="mt-0.5 text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
+              <p className="mt-1 text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
                 {service.category}
               </p>
+              <p className="mt-2 text-xs text-muted-foreground/80 max-w-xs truncate">
+                {service.description}
+              </p>
             </div>
-            <span className="shrink-0 font-mono text-sm" style={{ fontVariantNumeric: "tabular-nums" }}>
-              {formatMoney(service.price, service.currency)}
-            </span>
-            <button
-              className="border border-foreground bg-foreground px-3 py-1.5 text-[9px] font-bold tracking-[0.2em] uppercase text-background transition-colors hover:bg-accent hover:text-accent-foreground"
-              onClick={() => onSelect(service.id)}
-              type="button"
-            >
-              Select
-            </button>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className="shrink-0 font-mono text-lg" style={{ fontVariantNumeric: "tabular-nums" }}>
+                {formatMoney(service.price, service.currency)}
+              </span>
+              <button
+                className="border-2 border-foreground bg-foreground px-4 py-2 text-[9px] font-bold tracking-[0.2em] uppercase text-background transition-colors hover:bg-accent hover:text-accent-foreground"
+                onClick={() => onSelect(service.id)}
+                type="button"
+              >
+                Select
+              </button>
+            </div>
           </li>
         ))}
       </ul>
@@ -287,17 +296,18 @@ function ServiceInputForm({
   onBack: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <div className="flex flex-col gap-2 border-2 border-foreground p-4">
+    <div className="flex flex-col gap-5 p-5 lg:p-6">
+      <div className="border-2 border-foreground p-5">
         <p className="text-sm font-bold uppercase">{service.name}</p>
-        <p className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
+        <p className="mt-1 text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
           {service.category} · {formatMoney(service.price, service.currency)}
         </p>
+        <p className="mt-2 text-xs text-muted-foreground/80">{service.description}</p>
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4">
         {inputFields.map((field) => (
-          <div key={field.name} className="flex flex-col gap-1">
+          <div key={field.name} className="flex flex-col gap-1.5">
             <label className="text-[9px] tracking-[0.2em] text-muted-foreground uppercase">
               {field.label} {field.required && <span className="text-accent">*</span>}
             </label>
@@ -315,9 +325,9 @@ function ServiceInputForm({
           </p>
         )}
 
-        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
           <button className={PRIMARY_BTN} disabled={isSubmitting} onClick={onRequest} type="button">
-            {isSubmitting ? "Creating..." : "Create Request"}
+            {isSubmitting ? "Creating…" : "Create Request"}
           </button>
           <button className={SECONDARY_BTN} onClick={onBack} type="button">
             Back
@@ -342,9 +352,9 @@ function InputField({
       <select
         value={value}
         onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-        className="border-2 border-foreground bg-background px-3 py-2 text-[10px] font-mono uppercase text-foreground"
+        className="border-2 border-foreground bg-background px-4 py-3 text-[10px] font-mono uppercase text-foreground"
       >
-        <option value="">Select...</option>
+        <option value="">Select…</option>
         {(field.options ?? []).map((opt) => (
           <option key={opt} value={opt}>
             {opt}
@@ -359,8 +369,8 @@ function InputField({
       <textarea
         value={value}
         onChange={(e: ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
-        className="border-2 border-foreground bg-background px-3 py-2 text-[10px] font-mono uppercase text-foreground resize-y min-h-[80px]"
-        rows={4}
+        className="border-2 border-foreground bg-background px-4 py-3 text-[10px] font-mono uppercase text-foreground resize-y min-h-[100px]"
+        rows={5}
       />
     );
   }
@@ -370,7 +380,7 @@ function InputField({
       type="text"
       value={value}
       onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
-      className="border-2 border-foreground bg-background px-3 py-2 text-[10px] font-mono uppercase text-foreground"
+      className="border-2 border-foreground bg-background px-4 py-3 text-[10px] font-mono uppercase text-foreground"
     />
   );
 }
@@ -398,20 +408,22 @@ function RequestCreatedCard({
   const recipient = serviceRequest.paymentIntentId ?? serviceRequest.id;
 
   return (
-    <Card>
+    <Card variant="primary">
       <CardHeader
         action={<DemoBadge label="LOCAL DEMO" />}
         label="service.request"
         meta="007"
       />
       <CardBody className="p-0">
-        <div className="flex flex-col gap-4 p-4">
-          <div className="border-2 border-foreground p-4">
+        <div className="flex flex-col gap-5 p-5 lg:p-6">
+          <div className="border-2 border-foreground p-5">
             <p className="text-sm font-bold uppercase">SERVICE REQUEST CREATED</p>
             <p className="mt-1 text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
               {isFailed ? "Execution failed." : "Payment intent created. Awaiting wallet execution."}
             </p>
           </div>
+
+          <PipelineVisualization currentPhase={state.phase} compact />
 
           <dl className="grid gap-0 border-2 border-foreground sm:grid-cols-2">
             <Row label="Service" value={serviceRequest.serviceName} />
@@ -433,7 +445,7 @@ function RequestCreatedCard({
             </p>
           )}
 
-          <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+          <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
             {canExecute ? (
               <>
                 <button className={PRIMARY_BTN} disabled={isSubmitting} onClick={onExecute} type="button">
@@ -459,6 +471,7 @@ function ExecutionCard({
   serviceRequest,
   serviceResult,
   resultStatus,
+  setResultStatus,
   state,
   isSubmitting,
   onExecute,
@@ -469,6 +482,7 @@ function ExecutionCard({
   serviceRequest: ServiceRequest | null;
   serviceResult: ServiceResult | null;
   resultStatus: "idle" | "fetching" | "ready" | "not_ready" | "error";
+  setResultStatus: (status: "idle" | "fetching" | "ready" | "not_ready" | "error") => void;
   state: AgentExecutionState;
   isSubmitting: boolean;
   onExecute: () => void;
@@ -484,18 +498,20 @@ function ExecutionCard({
   const subline = getExecutionSubline(executionPhase, isFulfilled);
 
   return (
-    <Card>
+    <Card variant="primary">
       <CardHeader
         action={<DemoBadge label="LOCAL DEMO" />}
         label="agent.execution"
         meta="008"
       />
       <CardBody className="p-0">
-        <div className="flex flex-col gap-4 p-4">
-          <div className="border-2 border-foreground p-4">
+        <div className="flex flex-col gap-5 p-5 lg:p-6 animate-panel-slide-in">
+          <div className="border-2 border-foreground p-5">
             <p className="text-sm font-bold uppercase">{executionPhase.replace(/_/g, " ").toUpperCase()}</p>
             <p className="mt-1 text-[10px] tracking-[0.15em] text-muted-foreground uppercase">{subline}</p>
           </div>
+
+          <PipelineVisualization currentPhase={executionPhase} />
 
           <dl className="grid gap-0 border-2 border-foreground sm:grid-cols-2">
             <Row label="Service" value={serviceRequest?.serviceName ?? "—"} />
@@ -510,17 +526,13 @@ function ExecutionCard({
             <Row label="Fulfilled At" value={serviceRequest?.fulfilledAt ? new Date(serviceRequest.fulfilledAt).toLocaleString() : "—"} />
           </dl>
 
+          {/* FULFILLMENT RUNNING STATE */}
           {resultStatus === "fetching" && (
-            <div className="border-2 border-foreground p-4">
-              <p className="text-sm font-bold uppercase">FETCHING RESULT</p>
-              <p className="mt-1 text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
-                Retrieving service result…
-              </p>
-            </div>
+            <FulfillmentRunningState />
           )}
 
           {resultStatus === "not_ready" && (
-            <div className="border-2 border-foreground p-4">
+            <div className="border-2 border-foreground p-5 animate-panel-slide-in">
               <p className="text-sm font-bold uppercase">RESULT NOT READY</p>
               <p className="mt-1 text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
                 Fulfillment completed but result is not yet available.
@@ -529,20 +541,26 @@ function ExecutionCard({
           )}
 
           {resultStatus === "error" && (
-            <div className="border-2 border-accent p-4">
+            <div className="border-2 border-accent p-5 animate-panel-slide-in">
               <p className="text-sm font-bold uppercase">RESULT FETCH FAILED</p>
               <p className="mt-1 text-[10px] tracking-[0.15em] text-accent uppercase">
                 Could not retrieve service result.
               </p>
+              <div className="mt-4 flex items-center gap-3">
+                <button className={SECONDARY_BTN} onClick={() => setResultStatus("fetching")} type="button">
+                  Retry
+                </button>
+              </div>
             </div>
           )}
 
+          {/* SERVICE RESULT PANEL - THE KEY IMPROVEMENT */}
           {serviceResult && resultStatus === "ready" && (
             <ServiceResultDisplay result={serviceResult} />
           )}
 
           {state.failureReason && (
-            <div className="border-2 border-accent p-3">
+            <div className="border-2 border-accent p-4 animate-panel-slide-in">
               <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">Reason</p>
               <p className="mt-1.5 text-xs leading-relaxed">{state.failureReason}</p>
             </div>
@@ -571,6 +589,42 @@ function ExecutionCard({
   );
 }
 
+/* NEW: Fulfillment running state with animation */
+function FulfillmentRunningState() {
+  const steps = [
+    { id: "agentpay", label: "AGENTPAY", subtitle: "Payment verified", phase: "payment_confirmed" },
+    { id: "coingecko", label: "COINGECKO", subtitle: "Fetching data", phase: "fetching" },
+    { id: "result", label: "RESULT", subtitle: "Data returned", phase: "ready" },
+  ];
+
+  return (
+    <div className="border-2 border-foreground p-5 animate-panel-slide-in">
+      <p className="text-sm font-bold uppercase mb-5">SERVICE EXECUTION</p>
+      <div className="space-y-4">
+        {steps.map((step, index) => (
+          <div key={step.id} className="flex items-center gap-4">
+            <div className="flex flex-col items-center shrink-0">
+              <span className="status-dot size-3 bg-border transition-all duration-300" />
+              {index < steps.length - 1 && (
+                <div className="mt-1 w-px h-10 bg-gradient-to-b from-border/50 to-transparent" />
+              )}
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] tracking-[0.15em] font-mono uppercase text-muted-foreground">
+                {step.label}
+              </p>
+              <p className="text-xs text-muted-foreground/70">{step.subtitle}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="animate-spin size-5 border-2 border-accent/30 border-t-accent rounded-none" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ExecutionActions({
   executionPhase,
   isExecuting,
@@ -594,7 +648,7 @@ function ExecutionActions({
 }) {
   if (executionPhase === "intent_approved" && !isExecuting && !isCompleted) {
     return (
-      <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+      <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
         <button className={PRIMARY_BTN} disabled={isSubmitting} onClick={onExecute} type="button">
           {isSubmitting ? "Executing…" : "Confirm & Execute"}
         </button>
@@ -607,8 +661,8 @@ function ExecutionActions({
 
   if (executionPhase === "confirmed" && !isFulfilled) {
     return (
-      <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
-        <button className={PRIMARY_BTN} disabled={isSubmitting} onClick={onFulfill} type="button">
+      <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
+        <button className={SUCCESS_BTN} disabled={isSubmitting} onClick={onFulfill} type="button">
           Fulfill Service
         </button>
         <button className={SECONDARY_BTN} onClick={onReset} type="button">
@@ -620,7 +674,7 @@ function ExecutionActions({
 
   if (executionPhase === "confirmed" && isFulfilled) {
     return (
-      <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+      <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
         <button className={SECONDARY_BTN} onClick={onReset} type="button">
           Done
         </button>
@@ -629,7 +683,7 @@ function ExecutionActions({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+    <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
       <button className={SECONDARY_BTN} onClick={onReset} type="button">
         Reset
       </button>
@@ -651,11 +705,11 @@ function Row({
   title?: string;
 }) {
   return (
-    <div className="border-b border-border p-3 last:border-b-0 sm:odd:border-r-2 sm:odd:border-r-foreground">
+    <div className="border-b border-border p-4 last:border-b-0 sm:odd:border-r-2 sm:odd:border-r-foreground">
       <dt className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">{label}</dt>
       <dd
-        className={`mt-1 text-xs ${mono ? "font-mono" : ""} ${
-          tone === "ok" ? "text-accent" : tone === "bad" ? "text-accent" : ""
+        className={`mt-1.5 text-sm ${mono ? "font-mono" : ""} ${
+          tone === "ok" ? "text-success" : tone === "bad" ? "text-destructive" : ""
         }`}
         title={title}
       >
@@ -665,36 +719,106 @@ function Row({
   );
 }
 
+/* MAJOR IMPROVEMENT: Rich ServiceResultDisplay with market-data specific fields */
 function ServiceResultDisplay({ result }: { result: ServiceResult }) {
   const isMarketData = result.serviceId === "market-data";
   const output = result.output as Record<string, unknown> | null;
   const provider = isMarketData && output?.provider ? String(output.provider) : "unknown";
   const source = isMarketData && output?.source ? String(output.source) : "unknown";
-  const freshness = isMarketData && output?.freshness ? String(output.freshness) : undefined;
   const timestamp = output?.timestamp ? String(output.timestamp) : result.fulfilledAt;
+  
+  // Market data specific fields
+  const symbol = isMarketData && output?.symbol ? String(output.symbol) : "—";
+  const price = isMarketData && output?.price ? String(output.price) : "—";
+  const change24h = isMarketData && output?.change24h ? String(output.change24h) : "—";
+  const volume24h = isMarketData && output?.volume24h ? String(output.volume24h) : "—";
 
   return (
-    <div className="border-2 border-foreground p-4">
-      <p className="text-sm font-bold uppercase">SERVICE RESULT</p>
+    <div className="border-2 border-success bg-success/2 p-6 animate-result-reveal" role="status" aria-live="polite">
+      {/* Header with status badge */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 pb-4 border-b-2 border-success">
+        <div>
+          <p className="text-sm font-bold uppercase text-success">SERVICE RESULT</p>
+          <p className="mt-0.5 text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
+            {isMarketData ? "MARKET DATA" : result.serviceId.toUpperCase()}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 border-2 border-success bg-success px-3 py-1 text-[9px] font-bold tracking-[0.2em] uppercase text-success-foreground">
+            <span className="status-dot status-dot-success size-1.5" /> READY
+          </span>
+          {isMarketData && provider !== "unknown" && (
+            <span className="inline-flex items-center gap-1.5 border border-info/50 bg-info/10 px-3 py-1 text-[9px] font-bold tracking-[0.2em] uppercase text-info">
+              {provider.toUpperCase()}
+            </span>
+          )}
+        </div>
+      </div>
 
-      <dl className="mt-4 grid gap-0 border-2 border-foreground sm:grid-cols-2">
-        <Row label="Status" value={result.status.toUpperCase()} tone={result.status === "fulfilled" ? "ok" : "bad"} />
-        <Row label="Provider" value={provider.toUpperCase()} />
-        <Row label="Data Source" value={source.toUpperCase()} />
-        {freshness && <Row label="Freshness" value={freshness.toUpperCase()} />}
-        <Row label="Fetched At" value={new Date(timestamp).toLocaleString()} />
-        <Row label="Trusted Payment" value={result.trustedPaymentId} mono />
-        <Row label="Result ID" value={result.id} mono />
-      </dl>
-
-      {output && (
-        <div className="mt-4 border-2 border-border p-4">
-          <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase mb-2">Data</p>
-          <pre className="text-xs font-mono whitespace-pre-wrap break-words">
-            {JSON.stringify(output, null, 2)}
-          </pre>
+      {/* Market Data - Large Price Display */}
+      {isMarketData && (
+        <div className="mb-6">
+          <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase mb-2">{symbol}</p>
+          <p className="text-4xl sm:text-5xl font-bold font-mono tracking-tight text-foreground" style={{ fontVariantNumeric: "tabular-nums" }}>
+            ${parseFloat(price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-4">
+            <span className={`inline-flex items-center gap-1 px-2 py-1 text-[9px] font-bold tracking-[0.15em] uppercase font-mono ${
+              change24h.startsWith("-") 
+                ? "border-destructive/50 bg-destructive/10 text-destructive" 
+                : "border-success/50 bg-success/10 text-success"
+            }`}>
+              {change24h.startsWith("-") ? "" : "+"}{change24h}%
+            </span>
+            <span className="text-[9px] tracking-[0.15em] text-muted-foreground uppercase font-mono">
+              24H CHANGE
+            </span>
+          </div>
         </div>
       )}
+
+      {/* Details Grid */}
+      <dl className="grid gap-0 border-2 border-border sm:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+        {isMarketData && (
+          <>
+            <DetailRow label="24H VOLUME" value={volume24h === "—" ? "—" : `$${parseFloat(volume24h).toLocaleString()}`} />
+            <DetailRow label="SOURCE" value={source.toUpperCase()} />
+            <DetailRow label="PROVIDER" value={provider.toUpperCase()} />
+          </>
+        )}
+        <DetailRow label="UPDATED" value={new Date(timestamp).toLocaleString()} />
+        <DetailRow label="TRUSTED PAYMENT" value={result.trustedPaymentId} mono />
+        <DetailRow label="RESULT ID" value={result.id} mono />
+        <DetailRow label="STATUS" value={result.status.toUpperCase()} tone="ok" />
+      </dl>
+
+      {/* Raw output for debugging */}
+      {output && (
+        <details className="mt-5 border-2 border-border">
+          <summary className="p-4 cursor-pointer flex items-center gap-2 select-none">
+            <span className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">Raw Output</span>
+            <svg className="size-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </summary>
+          <div className="p-4 border-t border-border bg-background">
+            <pre className="text-[9px] font-mono whitespace-pre-wrap break-words text-muted-foreground/80">
+              {JSON.stringify(output, null, 2)}
+            </pre>
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function DetailRow({ label, value, mono = false, tone }: { label: string; value: string; mono?: boolean; tone?: "ok" }) {
+  return (
+    <div className="border-b border-border p-4 last:border-b-0 sm:odd:border-r-2 sm:odd:border-r-border">
+      <dt className="text-[9px] tracking-[0.2em] text-muted-foreground uppercase">{label}</dt>
+      <dd className={`mt-1.5 text-sm ${mono ? "font-mono" : ""} ${tone === "ok" ? "text-success" : ""}`}>
+        {value}
+      </dd>
     </div>
   );
 }

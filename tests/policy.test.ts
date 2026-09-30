@@ -19,6 +19,7 @@ const SERVICE: Service = {
   price: 0.1,
   currency: "USDC",
   active: true,
+  description: "Market data service",
 };
 
 function evaluate(overrides: Partial<{ service: Service; amount: number; spentToday: number }> = {}) {

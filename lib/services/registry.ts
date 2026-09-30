@@ -14,6 +14,7 @@ export const DEMO_SERVICES: readonly Service[] = [
     price: 0.1,
     currency: "USDC",
     active: true,
+    description: "Real-time market intelligence via CoinGecko (when enabled) or fixture data.",
   },
   {
     id: "research-report",
@@ -22,6 +23,7 @@ export const DEMO_SERVICES: readonly Service[] = [
     price: 0.25,
     currency: "USDC",
     active: true,
+    description: "Structured research output on requested topics.",
   },
   {
     id: "ai-summary",
@@ -30,6 +32,7 @@ export const DEMO_SERVICES: readonly Service[] = [
     price: 0.05,
     currency: "USDC",
     active: true,
+    description: "AI-powered text summarization with configurable length.",
   },
 ];
 

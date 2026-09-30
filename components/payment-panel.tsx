@@ -7,11 +7,12 @@ import { usePayments } from "@/components/payments-provider";
 import { usePaymentFlow } from "@/components/payment-flow-provider";
 import { useWallet } from "@/components/wallet-provider";
 import { shortenAddress } from "@/lib/wallet/state";
+import { PipelineVisualization } from "@/components/pipeline-visualization";
 
 const PRIMARY =
-  "border-2 border-foreground bg-foreground px-4 py-2 text-[10px] font-bold tracking-[0.2em] uppercase text-background transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50";
+  "border-2 border-foreground bg-foreground px-5 py-3 text-[10px] font-bold tracking-[0.2em] uppercase text-background transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50";
 const SECONDARY =
-  "border border-foreground/40 px-4 py-2 text-[10px] font-bold tracking-[0.2em] uppercase text-muted-foreground transition-colors hover:border-foreground hover:text-foreground";
+  "border border-foreground/40 px-5 py-3 text-[10px] font-bold tracking-[0.2em] uppercase text-muted-foreground transition-colors hover:border-foreground hover:text-foreground";
 
 export function PaymentPanel() {
   const { gate, status, activeEntry, error, isSubmitting, explorerUrl, confirm, cancel, dismiss } =
@@ -37,11 +38,12 @@ export function PaymentPanel() {
   if (status === "checking") {
     return (
       <Frame label="payment.panel" meta="004" badge="CHECKING">
-        <div className="flex flex-col gap-3 p-4 lg:p-5">
+        <div className="flex flex-col gap-4 p-5 lg:p-6">
           <p className="text-sm font-bold tracking-wide uppercase">VERIFYING SPENDING POLICY</p>
           <p className="text-[10px] leading-relaxed text-muted-foreground uppercase">
             Requesting an approved payment intent from the trusted server ledger…
           </p>
+          <PipelineVisualization currentPhase="requesting_intent" compact />
           <span className="inline-flex items-center gap-2 text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
             <span aria-hidden className="size-2 animate-blink bg-accent" />
             Server policy check
@@ -54,17 +56,17 @@ export function PaymentPanel() {
   if (status === "unavailable" && gate.status === "unavailable") {
     return (
       <Frame label="payment.panel" meta="004" badge="BLOCKED">
-        <div className="flex flex-col gap-4 p-4 lg:p-5">
+        <div className="flex flex-col gap-5 p-5 lg:p-6">
           <p className="text-sm font-bold tracking-wide text-accent uppercase">
             PAYMENT BLOCKED
           </p>
-          <div className="border-2 border-accent p-3">
+          <div className="border-2 border-accent p-4">
             <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">Reason</p>
             <p className="mt-1.5 text-xs leading-relaxed">{gate.message}</p>
           </div>
           <p className="text-[10px] leading-relaxed text-muted-foreground uppercase">
             The wallet was not contacted and no transaction was created. An unreadable ledger is
-            never treated as &quot;nothing spent yet&quot;.
+            never treated as &ldquo;nothing spent yet&rdquo;.
           </p>
           <div>
             <button className={SECONDARY} onClick={cancel} type="button">
@@ -79,9 +81,9 @@ export function PaymentPanel() {
   if (status === "blocked" && gate.status === "blocked") {
     return (
       <Frame label="payment.panel" meta="004" badge="BLOCKED">
-        <div className="flex flex-col gap-4 p-4 lg:p-5">
+        <div className="flex flex-col gap-5 p-5 lg:p-6">
           <p className="text-sm font-bold tracking-wide text-accent uppercase">PAYMENT BLOCKED</p>
-          <div className="border-2 border-accent p-3">
+          <div className="border-2 border-accent p-4">
             <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">Reason</p>
             <p className="mt-1.5 text-xs leading-relaxed">{gate.reason}</p>
           </div>
@@ -152,15 +154,26 @@ export function PaymentPanel() {
       meta="004"
       badge={confirmed ? "CONFIRMED" : failed ? "FAILED" : busy ? "IN FLIGHT" : "READY"}
     >
-      <div className="flex flex-col gap-4 p-4 lg:p-5">
-        <div>
+      <div className="flex flex-col gap-5 p-5 lg:p-6">
+        <div className="border-2 border-foreground p-5">
           <p className="text-sm font-bold tracking-wide uppercase">{headline}</p>
           <p className="mt-1 text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
             {subline}
           </p>
         </div>
 
-        <dl className="grid gap-0 border-2 border-foreground sm:grid-cols-2">
+        {/* Pipeline visualization for all states */}
+        <PipelineVisualization 
+          currentPhase={
+            ready ? "intent_approved" :
+            pending ? "awaiting_signature" :
+            submitted ? "submitted" :
+            confirmed ? "confirmed" :
+            "failed"
+          } 
+        />
+
+        <dl className="grid gap-0 border-2 border-foreground sm:grid-cols-2 lg:grid-cols-4">
           <Row label="Service" value={activeEntry?.serviceName ?? request.serviceId} />
           <Row label="Amount" value={`${formatUsd(request.amount.amount)} ${request.currency}`} />
           <Row label="Recipient" value={shortenAddress(request.recipient)} mono title={request.recipient} />
@@ -174,10 +187,10 @@ export function PaymentPanel() {
         </dl>
 
         {confirmed && activeEntry?.transactionHash ? (
-          <div className="border-2 border-foreground p-3">
-            <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">Transaction</p>
-            <p className="mt-1.5 break-all font-mono text-[11px]">{activeEntry.transactionHash}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="border-2 border-success bg-success/2 p-5 animate-panel-slide-in">
+            <p className="text-[10px] tracking-[0.2em] text-success uppercase mb-3">VERIFIED TRANSACTION</p>
+            <p className="break-all font-mono text-sm">{activeEntry.transactionHash}</p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               {explorerUrl ? (
                 <a
                   className={PRIMARY}
@@ -209,16 +222,16 @@ export function PaymentPanel() {
         ) : null}
 
         {submitted && activeEntry?.transactionHash ? (
-          <div className="border border-border p-3">
-            <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">Submitted</p>
-            <p className="mt-1.5 break-all font-mono text-[11px]">{activeEntry.transactionHash}</p>
+          <div className="border border-border p-4 animate-panel-slide-in">
+            <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase mb-2">Submitted</p>
+            <p className="break-all font-mono text-sm">{activeEntry.transactionHash}</p>
           </div>
         ) : null}
 
         {failed && activeEntry?.failureReason ? (
-          <div className="border-2 border-accent p-3">
-            <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">Reason</p>
-            <p className="mt-1.5 text-xs leading-relaxed">{activeEntry.failureReason}</p>
+          <div className="border-2 border-destructive bg-destructive/2 p-4 animate-panel-slide-in">
+            <p className="text-[10px] tracking-[0.2em] text-destructive uppercase mb-2">Reason</p>
+            <p className="text-xs leading-relaxed">{activeEntry.failureReason}</p>
           </div>
         ) : null}
 
@@ -228,7 +241,7 @@ export function PaymentPanel() {
           </p>
         ) : null}
 
-        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
           {ready ? (
             <>
               <button
@@ -237,7 +250,7 @@ export function PaymentPanel() {
                 onClick={() => void confirm()}
                 type="button"
               >
-                Confirm &amp; Pay
+                Confirm & Pay
               </button>
               <button className={SECONDARY} onClick={cancel} type="button">
                 Cancel
@@ -271,7 +284,7 @@ export function PaymentPanel() {
         </div>
 
         <p className="text-[9px] leading-relaxed tracking-[0.15em] text-muted-foreground uppercase">
-          Nothing is sent until you press Confirm &amp; Pay. The agent cannot submit a payment.
+          Nothing is sent until you press Confirm & Pay. The agent cannot submit a payment.
         </p>
       </div>
     </Frame>
@@ -291,12 +304,12 @@ function Frame({
 }) {
   return (
     <section className="flex flex-col border-2 border-foreground bg-background">
-      <header className="flex items-center justify-between gap-3 border-b-2 border-foreground px-4 py-2">
-        <span className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">{label}</span>
-        <span className="flex items-center gap-2 text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
-          {badge ? <span className="text-accent">{badge}</span> : null}
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-foreground px-5 py-3 lg:px-6 lg:py-4">
+        <span className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase font-mono">{label}</span>
+        <div className="flex items-center gap-3 text-[10px] tracking-[0.2em] text-muted-foreground uppercase font-mono">
+          {badge && <span className="text-accent">{badge}</span>}
           <span>{meta}</span>
-        </span>
+        </div>
       </header>
       {children}
     </section>
@@ -317,11 +330,11 @@ function Row({
   title?: string;
 }) {
   return (
-    <div className="border-b border-border p-3 last:border-b-0 sm:odd:border-r-2 sm:odd:border-r-foreground">
-      <dt className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">{label}</dt>
+    <div className="border-b border-border p-4 last:border-b-0 sm:odd:border-r-2 sm:odd:border-r-foreground">
+      <dt className="text-[9px] tracking-[0.2em] text-muted-foreground uppercase">{label}</dt>
       <dd
-        className={`mt-1 text-xs ${mono ? "font-mono" : ""} ${
-          tone === "ok" ? "text-accent" : tone === "bad" ? "text-accent" : ""
+        className={`mt-1.5 text-sm ${mono ? "font-mono" : ""} ${
+          tone === "ok" ? "text-success" : tone === "bad" ? "text-destructive" : ""
         }`}
         title={title}
       >
@@ -333,7 +346,7 @@ function Row({
 
 function Empty({ message, detail }: { message: string; detail: string }) {
   return (
-    <div className="flex flex-col items-start gap-2 p-4 lg:p-5">
+    <div className="flex flex-col items-start gap-2 p-5 lg:p-6">
       <p className="text-sm font-bold tracking-wide uppercase">{message}</p>
       <p className="text-[10px] leading-relaxed text-muted-foreground uppercase">{detail}</p>
     </div>
@@ -342,7 +355,7 @@ function Empty({ message, detail }: { message: string; detail: string }) {
 
 function RecentCount({ count, onClear }: { count: number; onClear: () => void }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+    <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-4">
       <span className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
         {count} record{count === 1 ? "" : "s"} in the ledger
       </span>

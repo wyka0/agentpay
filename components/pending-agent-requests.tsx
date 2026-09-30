@@ -10,16 +10,19 @@ import { sendUsdcTransfer } from "@/lib/wallet/payment";
 import { getActiveArcNetwork } from "@/lib/arc/network";
 import { getInjectedProvider } from "@/lib/wallet/client";
 import { verifyTrustedTransaction } from "@/lib/payments/client";
+import { PipelineVisualization } from "@/components/pipeline-visualization";
 import type { ServiceRequest } from "@/types/service-request";
 import type { Currency } from "@/types/money";
 import type { EvmAddress } from "@/types/money";
 
 const PRIMARY =
-  "border-2 border-foreground bg-foreground px-4 py-2 text-[10px] font-bold tracking-[0.2em] uppercase text-background transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60";
+  "border-2 border-foreground bg-foreground px-5 py-3 text-[10px] font-bold tracking-[0.2em] uppercase text-background transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60";
 const SECONDARY =
-  "border border-foreground/40 px-4 py-2 text-[10px] font-bold tracking-[0.2em] uppercase text-muted-foreground transition-colors hover:border-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60";
+  "border border-foreground/40 px-5 py-3 text-[10px] font-bold tracking-[0.2em] uppercase text-muted-foreground transition-colors hover:border-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60";
+const SUCCESS_BTN =
+  "border-2 border-success bg-success px-5 py-3 text-[10px] font-bold tracking-[0.2em] uppercase text-success-foreground transition-colors hover:bg-success/90 disabled:cursor-not-allowed disabled:opacity-60";
 const STATUS_BADGE =
-  "inline-flex items-center gap-1.5 border px-1.5 py-0.5 text-[9px] font-bold tracking-[0.2em] uppercase";
+  "inline-flex items-center gap-1.5 border px-2 py-0.5 text-[9px] font-bold tracking-[0.2em] uppercase";
 
 const MODAL_OVERLAY =
   "fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 isolation-isolate";
@@ -73,13 +76,11 @@ function RejectModal({ isOpen, onClose, onConfirm, isLoading, request }: RejectM
     const lastElement = focusableElements[focusableElements.length - 1];
 
     if (event.shiftKey) {
-      // Shift + Tab - move backwards
       if (document.activeElement === firstElement) {
         event.preventDefault();
         lastElement?.focus();
       }
     } else {
-      // Tab - move forwards
       if (document.activeElement === lastElement) {
         event.preventDefault();
         firstElement?.focus();
@@ -87,26 +88,21 @@ function RejectModal({ isOpen, onClose, onConfirm, isLoading, request }: RejectM
     }
   }, []);
 
-  // Focus management when modal opens/closes
   useEffect(() => {
     if (!isOpen) return;
 
-    // Store the element that had focus before modal opened
     previousActiveElementRef.current = document.activeElement as HTMLElement;
 
-    // Make background content inert to prevent focus
     const mainContent = document.getElementById('main-content');
     if (mainContent) {
       mainContent.setAttribute('inert', 'true');
     }
 
-    // Focus the first focusable element in the modal (Cancel button)
     setTimeout(() => {
       const cancelButton = modalRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)');
       cancelButton?.focus();
     }, 0);
 
-    // Handle escape key
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose();
@@ -119,11 +115,9 @@ function RejectModal({ isOpen, onClose, onConfirm, isLoading, request }: RejectM
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      // Remove inert when modal closes
       if (mainContent) {
         mainContent.removeAttribute('inert');
       }
-      // Restore focus to the element that opened the modal
       if (previousActiveElementRef.current) {
         previousActiveElementRef.current.focus();
       }
@@ -171,7 +165,6 @@ function RejectModal({ isOpen, onClose, onConfirm, isLoading, request }: RejectM
     </div>
   );
 
-  // Portal to document.body to avoid any parent stacking context issues
   return createPortal(modalContent, document.body);
 }
 
@@ -189,7 +182,6 @@ export function PendingAgentRequests() {
   const mountedRef = useRef(true);
 
   const fetchPending = useCallback(async () => {
-    // Always attempt to fetch; the server will return 401 if not authenticated
     setLoading(true);
     setError(null);
     try {
@@ -201,7 +193,6 @@ export function PendingAgentRequests() {
       const data = await response.json();
       if (!response.ok) {
         if (response.status === 401) {
-          // Not authenticated - this is expected, don't set error
           if (mountedRef.current) {
             setPendingRequests([]);
             setLoading(false);
@@ -226,8 +217,12 @@ export function PendingAgentRequests() {
 
   useEffect(() => {
     mountedRef.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchPending();
+    // Use setTimeout to avoid synchronous setState in effect
+    setTimeout(() => {
+      if (mountedRef.current) {
+        fetchPending();
+      }
+    }, 0);
     return () => {
       mountedRef.current = false;
     };
@@ -237,7 +232,6 @@ export function PendingAgentRequests() {
     if (!request.intentId) return;
     setError(null);
     try {
-      // In demo mode, use the demo completion endpoint
       if (demoMode) {
         const response = await fetch("/api/agent/v1/demo/complete-payment", {
           method: "POST",
@@ -248,7 +242,6 @@ export function PendingAgentRequests() {
         const data = await response.json();
         if (!data.ok) throw new Error(data.error?.message ?? "Failed to complete demo payment");
       } else {
-        // Fetch the payment intent details
         const intentResponse = await fetch(`/api/agent/v1/requests/${request.id}/intent`, {
           method: "GET",
           headers: { "content-type": "application/json" },
@@ -259,7 +252,6 @@ export function PendingAgentRequests() {
 
         const intent = intentData.intent;
 
-        // Verify wallet is connected and on correct network
         const { connection, network, session } = wallet;
         const provider = getInjectedProvider();
         if (connection !== "connected" || !provider) {
@@ -269,17 +261,15 @@ export function PendingAgentRequests() {
           throw new Error(`Switch your wallet to ${network.label} (chain ${network.chainId}) before approving.`);
         }
 
-        // Prepare the payment request for the wallet
         const paymentRequest = {
           id: intent.id,
-          agentId: request.id, // Using request ID as agent reference
-          serviceId: request.id, // Using request ID as service reference
+          agentId: request.id,
+          serviceId: request.id,
           recipient: intent.recipient,
           amount: { amount: intent.amount.amount, currency: intent.currency },
           currency: intent.currency,
         };
 
-        // Submit through the wallet
         const sent = await sendUsdcTransfer({
           provider: provider!,
           network: getActiveArcNetwork(),
@@ -289,7 +279,6 @@ export function PendingAgentRequests() {
 
         if (!sent.ok) throw new Error(sent.error.message);
 
-        // Verify the transaction on Arc and record in trusted ledger
         const verifyResult = await verifyTrustedTransaction({
           intentId: intent.id,
           txHash: sent.transactionHash,
@@ -298,7 +287,6 @@ export function PendingAgentRequests() {
           ? "Transaction already recorded"
           : verifyResult.message);
 
-        // Verify the transaction with the trusted ledger
         const fulfillResponse = await fetch(`/api/services/requests/${request.id}/fulfill`, {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -336,17 +324,14 @@ export function PendingAgentRequests() {
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error?.message ?? "Failed to reject payment request");
       setError(null);
-      // Optimistic update: immediately remove rejected request from local state
       setPendingRequests((current) => current.filter((req) => req.id !== rejectedId));
       fetchPending();
-      // Only close modal on SUCCESS
       setRejectLoading(false);
       setRejectModalOpen(false);
       setRejectTarget(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to reject payment request");
       setRejectLoading(false);
-      // Modal stays open on error
     }
   }, [fetchPending, rejectTarget]);
 
@@ -359,7 +344,6 @@ export function PendingAgentRequests() {
     if (!request.intentId) return;
     setError(null);
     try {
-      // Directly call the fulfill endpoint - NO payment flow for already-confirmed requests
       const response = await fetch(`/api/services/requests/${request.id}/fulfill`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -381,8 +365,8 @@ export function PendingAgentRequests() {
 
   return (
     <>
-      <section id="main-content" className="border-2 border-foreground bg-background/80 p-6">
-        <div className="flex flex-col items-center gap-4 text-center mb-6">
+      <section id="main-content" className="border-2 border-foreground bg-background/80 p-6 lg:p-8">
+        <div className="flex flex-col items-center gap-5 text-center mb-8">
           <span className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
             Pending Agent Requests
           </span>
@@ -404,7 +388,7 @@ export function PendingAgentRequests() {
         </div>
 
         {error && (
-          <div className="mb-4 border-2 border-accent bg-accent/5 p-4">
+          <div className="mb-6 border-2 border-accent bg-accent/5 p-5 animate-panel-slide-in">
             <p className="text-[10px] tracking-[0.15em] text-accent uppercase" role="alert">
               {error}
             </p>
@@ -412,149 +396,323 @@ export function PendingAgentRequests() {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-8">
+          <div className="flex items-center justify-center py-12">
             <span className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
               Loading pending requests…
             </span>
           </div>
         ) : pendingRequests.length === 0 ? (
-          <div className="text-center py-8">
+          <div className="text-center py-12 animate-fade-up">
+            <div className="inline-flex items-center justify-center w-16 h-16 border-2 border-border mb-4">
+              <svg className="size-8 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            </div>
             <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
               No pending agent requests.
             </p>
           </div>
         ) : (
-          <div className="border-2 border-foreground">
-            <div className="border-b-2 border-foreground px-4 py-2">
+          <div className="border-2 border-foreground animate-fade-up">
+            <div className="border-b-2 border-foreground px-5 py-3 lg:px-6 lg:py-4">
               <p className="text-sm font-bold uppercase">Pending Approvals</p>
             </div>
             <ul className="divide-y divide-border">
               {pendingRequests.map((req) => (
-                <li key={req.id} className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold uppercase">{req.agentName}</p>
-                      <span className={STATUS_BADGE}>
-                        {req.serviceCategory.toUpperCase()}
-                      </span>
-                      <span
-                        className={`${STATUS_BADGE} ${
-                          req.status === "payment_required"
-                            ? "border-accent bg-accent/5 text-accent"
-                            : req.status === "payment_pending"
-                            ? "border-accent bg-accent/5 text-accent"
-                            : req.status === "payment_confirmed"
-                            ? "border-foreground bg-foreground text-background"
-                            : "border-border text-muted-foreground"
-                        }`}
-                      >
-                        {req.status.replace(/_/g, " ").toUpperCase()}
-                      </span>
-                    </div>
-                    <p className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
-                      {req.serviceName}
-                    </p>
-                    <p className="text-[9px] font-mono text-muted-foreground">
-                      ID: {req.id} · Intent: {req.intentId ?? "—"} · Created: {new Date(req.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 sm:ml-4">
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="font-mono text-sm text-accent">
-                        {formatMoney(req.amount, req.currency)}
-                      </span>
-                      <span className="text-[9px] tracking-[0.15em] text-muted-foreground uppercase">
-                        Owner: {shortenAddress(req.ownerWalletAddress)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {auth.status === "authenticated" ? (
-                        req.status === "payment_required" || req.status === "payment_pending" ? (
-                          <>
-                            <button
-                              className={PRIMARY}
-                              disabled={loading}
-                              onClick={() => handleApprove(req)}
-                              type="button"
-                            >
-                              Approve Payment
-                            </button>
-                            <button
-                              className={SECONDARY}
-                              disabled={loading}
-                              onClick={() => handleReject(req)}
-                              type="button"
-                            >
-                              Reject Payment
-                            </button>
-                          </>
-                        ) : req.status === "payment_confirmed" ? (
-                          <button
-                            className={PRIMARY}
-                            disabled={loading}
-                            onClick={() => handleFulfill(req)}
-                            type="button"
-                          >
-                            Fulfill Service
-                          </button>
-                        ) : (
-                          <span className={SECONDARY} style={{ cursor: "default" }}>
-                            {req.status === "fulfilled" ? "Fulfilled" : "Done"}
-                          </span>
-                        )
-                      ) : (
-                        <>
-                          <button
-                            className={PRIMARY}
-                            disabled={!injected}
-                            onClick={async () => {
-                              if (auth.session?.walletAddress && injected) {
-                                try {
-                                  await auth.signIn({ walletAddress: auth.session.walletAddress, signMessage: injected });
-                                  await auth.refresh();
-                                } catch {
-                                  // Error handled in auth context
-                                }
-                              }
-                            }}
-                            type="button"
-                          >
-                            Sign In to Approve
-                          </button>
-                          <button
-                            className={SECONDARY}
-                            disabled={!injected}
-                            onClick={async () => {
-                              if (auth.session?.walletAddress && injected) {
-                                try {
-                                  await auth.signIn({ walletAddress: auth.session.walletAddress, signMessage: injected });
-                                  await auth.refresh();
-                                } catch {
-                                  // Error handled in auth context
-                                }
-                              }
-                            }}
-                            type="button"
-                          >
-                            Sign In to Reject
-                          </button>
-                        </>
-                      )}
-                    </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </section>
-    <RejectModal
-      isOpen={rejectModalOpen}
-      onClose={handleRejectCancel}
-      onConfirm={handleRejectConfirm}
-      isLoading={rejectLoading}
-      request={rejectTarget}
-    />
+                <PendingRequestCard
+                  key={req.id}
+                  request={req}
+                  loading={loading}
+                  auth={auth}
+                  wallet={wallet}
+                  injected={injected}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                  onFulfill={handleFulfill}
+                  demoMode={demoMode}
+                />
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
+      <RejectModal
+        isOpen={rejectModalOpen}
+        onClose={handleRejectCancel}
+        onConfirm={handleRejectConfirm}
+        isLoading={rejectLoading}
+        request={rejectTarget}
+      />
     </>
+  );
+}
+
+function PendingRequestCard({
+  request,
+  loading,
+  auth,
+  wallet,
+  injected,
+  onApprove,
+  onReject,
+  onFulfill,
+  demoMode,
+}: {
+  request: PendingAgentRequest;
+  loading: boolean;
+  auth: ReturnType<typeof useAuth>;
+  wallet: ReturnType<typeof useWallet>;
+  injected: ReturnType<typeof useInjectedSignMessage>;
+  onApprove: (req: PendingAgentRequest) => void;
+  onReject: (req: PendingAgentRequest) => void;
+  onFulfill: (req: PendingAgentRequest) => void;
+  demoMode: boolean;
+}) {
+  const isPaymentRequired = request.status === "payment_required";
+  const isPaymentPending = request.status === "payment_pending";
+  const isPaymentConfirmed = request.status === "payment_confirmed";
+  const isFulfilled = request.status === "fulfilled";
+  const isRejected = request.status === "rejected";
+
+  const getStatusBadge = () => {
+    switch (request.status) {
+      case "payment_required":
+      case "payment_pending":
+        return (
+          <span className={`${STATUS_BADGE} border-accent bg-accent/5 text-accent`}>
+            {request.status.replace(/_/g, " ").toUpperCase()}
+          </span>
+        );
+      case "payment_confirmed":
+        return (
+          <span className={`${STATUS_BADGE} border-success bg-success/5 text-success`}>
+            PAYMENT CONFIRMED
+          </span>
+        );
+      case "fulfilled":
+        return (
+          <span className={`${STATUS_BADGE} border-success bg-success text-success-foreground`}>
+            FULFILLED
+          </span>
+        );
+      case "rejected":
+        return (
+          <span className={`${STATUS_BADGE} border-destructive bg-destructive/5 text-destructive`}>
+            REJECTED
+          </span>
+        );
+      case "failed":
+        return (
+          <span className={`${STATUS_BADGE} border-destructive bg-destructive/5 text-destructive`}>
+            FAILED
+          </span>
+        );
+      default:
+        return (
+          <span className={`${STATUS_BADGE} border-border text-muted-foreground`}>
+            {request.status.replace(/_/g, " ").toUpperCase()}
+          </span>
+        );
+    }
+  };
+
+  const getActionButtons = () => {
+    if (auth.status === "authenticated") {
+      if (isPaymentRequired || isPaymentPending) {
+        return (
+          <div className="flex items-center gap-2">
+            <button
+              className={SUCCESS_BTN}
+              disabled={loading}
+              onClick={() => onApprove(request)}
+              type="button"
+            >
+              Approve Payment
+            </button>
+            <button
+              className={SECONDARY}
+              disabled={loading}
+              onClick={() => onReject(request)}
+              type="button"
+            >
+              Reject Payment
+            </button>
+          </div>
+        );
+      }
+      if (isPaymentConfirmed) {
+        return (
+          <div className="flex items-center gap-2">
+            <button
+              className={SUCCESS_BTN}
+              disabled={loading}
+              onClick={() => onFulfill(request)}
+              type="button"
+            >
+              Fulfill Service
+            </button>
+          </div>
+        );
+      }
+      if (isFulfilled || isRejected || request.status === "failed") {
+        return (
+          <span className={SECONDARY} style={{ cursor: "default" }}>
+            {isFulfilled ? "Fulfilled" : isRejected ? "Rejected" : "Failed"}
+          </span>
+        );
+      }
+    }
+    return (
+      <div className="flex items-center gap-2">
+        <button
+          className={PRIMARY}
+          disabled={!injected}
+          onClick={async () => {
+            if (auth.session?.walletAddress && injected) {
+              try {
+                await auth.signIn({ walletAddress: auth.session.walletAddress, signMessage: injected });
+                await auth.refresh();
+              } catch {
+                // Error handled in auth context
+              }
+            }
+          }}
+          type="button"
+        >
+          Sign In to Approve
+        </button>
+        <button
+          className={SECONDARY}
+          disabled={!injected}
+          onClick={async () => {
+            if (auth.session?.walletAddress && injected) {
+              try {
+                await auth.signIn({ walletAddress: auth.session.walletAddress, signMessage: injected });
+                await auth.refresh();
+              } catch {
+                // Error handled in auth context
+              }
+            }
+          }}
+          type="button"
+        >
+          Sign In to Reject
+        </button>
+      </div>
+    );
+  };
+
+  // Payment Confirmed - Large Card with Pipeline Visualization
+  if (isPaymentConfirmed) {
+    return (
+      <li className="bg-success/2 border-t border-success/50 animate-panel-slide-in" style={{ borderTopWidth: '2px' }}>
+        <div className="p-5 lg:p-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
+            <div className="flex items-center gap-3">
+              <div className="inline-flex items-center justify-center w-10 h-10 border-2 border-success bg-success text-success-foreground">
+                <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-lg font-bold uppercase text-success">PAYMENT CONFIRMED</p>
+                <p className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase">VERIFIED ON ARC</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="font-mono text-lg text-accent" style={{ fontVariantNumeric: "tabular-nums" }}>
+                {formatMoney(request.amount, request.currency)}
+              </span>
+            </div>
+          </div>
+
+          {/* Pipeline Visualization */}
+          <PipelineVisualization currentPhase="confirmed" showLabels={true} compact={false} />
+
+          {/* Details Grid */}
+          <dl className="mt-5 grid gap-0 border-2 border-foreground sm:grid-cols-2 lg:grid-cols-4">
+            <DetailRow label="SERVICE" value={request.serviceName} />
+            <DetailRow label="REQUEST" value={request.serviceCategory.toUpperCase()} />
+            <DetailRow label="AMOUNT" value={formatMoney(request.amount, request.currency)} />
+            <DetailRow label="ARC TRANSACTION" value={request.intentId ?? "—"} mono />
+          </dl>
+
+          {/* Fulfill Button */}
+          <div className="mt-5 flex items-center gap-3 border-t border-border pt-5">
+            {auth.status === "authenticated" ? (
+              <button
+                className={SUCCESS_BTN}
+                disabled={loading}
+                onClick={() => onFulfill(request)}
+                type="button"
+              >
+                Fulfill Service
+              </button>
+            ) : (
+              <button
+                className={PRIMARY}
+                disabled={!injected}
+                onClick={async () => {
+                  if (auth.session?.walletAddress && injected) {
+                    try {
+                      await auth.signIn({ walletAddress: auth.session.walletAddress, signMessage: injected });
+                      await auth.refresh();
+                    } catch {
+                      // Error handled in auth context
+                    }
+                  }
+                }}
+                type="button"
+              >
+                Sign In to Fulfill
+              </button>
+            )}
+          </div>
+        </div>
+      </li>
+    );
+  }
+
+  // Standard pending request card
+  return (
+    <li className="p-5 lg:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-up">
+      <div className="flex flex-col gap-2 flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-bold uppercase">{request.agentName}</p>
+          {getStatusBadge()}
+        </div>
+        <p className="text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
+          {request.serviceName}
+        </p>
+        <p className="text-[9px] font-mono text-muted-foreground">
+          ID: {request.id} · Intent: {request.intentId ?? "—"} · Created: {new Date(request.createdAt).toLocaleString()}
+        </p>
+      </div>
+      <div className="flex items-center gap-3 sm:ml-4 shrink-0">
+        <div className="flex flex-col items-end gap-1">
+          <span className="font-mono text-lg text-accent" style={{ fontVariantNumeric: "tabular-nums" }}>
+            {formatMoney(request.amount, request.currency)}
+          </span>
+          <span className="text-[9px] tracking-[0.15em] text-muted-foreground uppercase">
+            Owner: {shortenAddress(request.ownerWalletAddress)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {getActionButtons()}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function DetailRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="border-b border-border p-4 last:border-b-0 sm:odd:border-r-2 sm:odd:border-r-foreground">
+      <dt className="text-[9px] tracking-[0.2em] text-muted-foreground uppercase">{label}</dt>
+      <dd className={`mt-1.5 text-sm ${mono ? "font-mono" : ""}`}>
+        {value}
+      </dd>
+    </div>
   );
 }

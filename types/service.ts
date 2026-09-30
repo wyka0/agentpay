@@ -9,4 +9,5 @@ export interface Service {
   price: number;
   currency: Currency;
   active: boolean;
+  description: string;
 }

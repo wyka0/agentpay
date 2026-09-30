@@ -11,9 +11,9 @@ import {
 import type { Service, TrustedPayment } from "@/types";
 
 const DEMO_SERVICES: readonly Service[] = [
-  { id: "market-data", name: "Market Data", category: "data", price: 0.1, currency: "USDC", active: true },
-  { id: "research-report", name: "Research Report", category: "research", price: 0.25, currency: "USDC", active: true },
-  { id: "ai-summary", name: "AI Summary", category: "ai", price: 0.05, currency: "USDC", active: true },
+  { id: "market-data", name: "Market Data", category: "data", price: 0.1, currency: "USDC", active: true, description: "Market data service" },
+  { id: "research-report", name: "Research Report", category: "research", price: 0.25, currency: "USDC", active: true, description: "Research report service" },
+  { id: "ai-summary", name: "AI Summary", category: "ai", price: 0.05, currency: "USDC", active: true, description: "AI summary service" },
 ];
 
 function createApprovedIntent(overrides: Partial<{ id: string; recipient: string; amount: number; serviceId: string }> = {}) {
