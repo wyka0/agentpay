@@ -1,5 +1,9 @@
 "use client";
 
+import { motion } from "framer-motion";
+
+const ease = [0.22, 1, 0.36, 1] as const;
+
 const FLOW_STEPS = [
   {
     number: "01",
@@ -9,32 +13,32 @@ const FLOW_STEPS = [
   {
     number: "02",
     title: "AGENTPAY",
-    subtitle: "Validates request",
+    subtitle: '"Is this allowed?"',
   },
   {
     number: "03",
     title: "POLICY",
-    subtitle: "Checks limits & ownership",
+    subtitle: "Check limit, ownership, service.",
   },
   {
     number: "04",
     title: "PAYMENT",
-    subtitle: "Explicit USDC transfer",
+    subtitle: "Explicit USDC payment.",
   },
   {
     number: "05",
     title: "ARC",
-    subtitle: "Settlement + verification",
+    subtitle: "Settlement + verification.",
   },
   {
     number: "06",
     title: "SERVICE",
-    subtitle: "Market data / research / AI",
+    subtitle: "Market data / research / AI summary.",
   },
   {
     number: "07",
     title: "RESULT",
-    subtitle: "Data returned to agent",
+    subtitle: "Data returned to agent.",
   },
 ];
 
@@ -42,22 +46,32 @@ export function AgentPayFlow() {
   return (
     <section id="flow" className="w-full px-6 py-20 lg:px-12 lg:py-28 border-t-2 border-foreground">
       {/* Section label */}
-      <div className="flex items-center gap-4 mb-12 animate-text-reveal">
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        whileInView={{ opacity: 1, x: 0 }}
+        viewport={{ once: true, margin: "-80px" }}
+        transition={{ duration: 0.5, ease }}
+        className="flex items-center gap-4 mb-12"
+      >
         <span className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground font-mono">
           SECTION: PAYMENT_FLOW
         </span>
         <div className="flex-1 border-t border-border" />
         <span className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground font-mono">004</span>
-      </div>
+      </motion.div>
 
       <div className="max-w-5xl mx-auto">
         {/* Compact vertical flow */}
         <div className="flex flex-col items-center gap-0">
           {FLOW_STEPS.map((step, i) => (
-            <div
+            <motion.div
               key={step.number}
-              className="w-full max-w-md flex items-center gap-4 py-4 sm:py-5 animate-fade-up"
-              style={{ animationDelay: `${i * 80}ms` }}
+              custom={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ delay: i * 0.06, duration: 0.4, ease }}
+              className="w-full max-w-md flex items-center gap-4 py-3 sm:py-4"
             >
               {/* Step number + title */}
               <div className="flex flex-col items-center sm:items-end w-28 sm:w-32 flex-shrink-0 text-right">
@@ -70,7 +84,7 @@ export function AgentPayFlow() {
               </div>
 
               {/* Vertical line / arrow connector */}
-              <div className="flex-1 flex items-center relative">
+              <div className="flex-1 flex items-center">
                 <div className="w-full h-px bg-border/50" />
                 {i < FLOW_STEPS.length - 1 && (
                   <div className="absolute w-px h-8 bg-border/50 left-32 top-full -translate-x-1/2" />
@@ -93,17 +107,21 @@ export function AgentPayFlow() {
                   </svg>
                 </div>
               )}
-            </div>
+            </motion.div>
           ))}
         </div>
 
         {/* Mobile stacked view */}
-        <div className="hidden lg:flex flex-col items-center gap-0 mt-6">
+        <div className="hidden lg:flex flex-col items-center gap-0 mt-4">
           {FLOW_STEPS.map((step, i) => (
-            <div
+            <motion.div
               key={`${step.number}-mobile`}
-              className="w-full max-w-md flex items-center gap-4 py-3 animate-fade-up"
-              style={{ animationDelay: `${i * 80}ms` }}
+              custom={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ delay: i * 0.06, duration: 0.4, ease }}
+              className="w-full max-w-md flex items-center gap-4 py-2"
             >
               <div className="flex flex-col items-center w-20 flex-shrink-0 text-center">
                 <span className="text-xl font-bold text-accent font-mono tracking-[0.1em] leading-none">
@@ -129,7 +147,7 @@ export function AgentPayFlow() {
                   </svg>
                 </div>
               )}
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>

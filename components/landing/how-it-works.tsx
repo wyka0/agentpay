@@ -1,5 +1,9 @@
 "use client";
 
+import { motion } from "framer-motion";
+
+const ease = [0.22, 1, 0.36, 1] as const;
+
 const STEPS = [
   {
     number: "01",
@@ -47,26 +51,35 @@ export function HowItWorks() {
   return (
     <section id="how-it-works" className="w-full px-6 py-20 lg:px-12 lg:py-28 border-t-2 border-foreground">
       {/* Section label */}
-      <div className="flex items-center gap-4 mb-12 animate-text-reveal">
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        whileInView={{ opacity: 1, x: 0 }}
+        viewport={{ once: true, margin: "-80px" }}
+        transition={{ duration: 0.5, ease }}
+        className="flex items-center gap-4 mb-12"
+      >
         <span className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground font-mono">
           SECTION: LIFECYCLE
         </span>
         <div className="flex-1 border-t border-border" />
         <span className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground font-mono">004</span>
-      </div>
+      </motion.div>
 
       <div className="max-w-5xl mx-auto">
         {STEPS.map((step, i) => (
-          <div
+          <motion.div
             key={step.number}
-            className="flex flex-col sm:flex-row gap-6 sm:gap-8 py-8 border-b border-border first:border-t-2 border-foreground animate-fade-up"
-            style={{ animationDelay: `${i * 80}ms` }}
+            custom={i}
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, margin: "-60px" }}
+            transition={{ delay: i * 0.08, duration: 0.5, ease }}
+            className="flex flex-col sm:flex-row gap-6 sm:gap-8 py-8 border-b border-border first:border-t-2 border-foreground"
           >
-            <div className="flex items-start gap-4 sm:gap-6 flex-shrink-0 w-full sm:w-28">
+            <div className="flex items-start gap-4 sm:gap-6 flex-shrink-0 w-full sm:w-32">
               <span className="text-3xl sm:text-4xl font-bold text-accent font-mono tracking-[0.1em] leading-none pt-1">
                 {step.number}
               </span>
-              <div className="hidden sm:block w-px h-12 bg-gradient-to-b from-border/50 to-transparent" />
             </div>
 
             <div className="flex-1 pt-2">
@@ -77,7 +90,12 @@ export function HowItWorks() {
                 {step.description}
               </p>
             </div>
-          </div>
+
+            {/* Connecting line */}
+            {i < STEPS.length - 1 && (
+              <div className="hidden sm:block w-px h-16 bg-border/50 ml-16" />
+            )}
+          </motion.div>
         ))}
       </div>
     </section>

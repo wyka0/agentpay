@@ -1,15 +1,22 @@
 ﻿"use client";
 
+import { motion, useMotionValue, useTransform, useAnimation } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 
+const ORANGE = "#ea580c";
+const GRAY = "hsl(var(--border))";
+const FOREGROUND = "hsl(var(--foreground))";
+const MUTED = "hsl(var(--muted-foreground))";
+const CARD = "hsl(var(--card))";
+
 const NODES = [
-  { id: "agent", label: "AGENT", subLabel: "DECISION", concept: "AGENT", y: 60 },
-  { id: "policy", label: "POLICY", subLabel: "ENGINE", concept: "POLICY", y: 130 },
-  { id: "intent", label: "PAYMENT", subLabel: "INTENT", concept: "INTENT", y: 200 },
-  { id: "wallet", label: "WALLET", subLabel: "SIGNATURE", concept: "WALLET", y: 270 },
-  { id: "arc", label: "ARC", subLabel: "SETTLEMENT", concept: "ARC", y: 340 },
-  { id: "verify", label: "VERIFIED", subLabel: "PAYMENT", concept: "VERIFY", y: 410 },
-  { id: "fulfill", label: "SERVICE", subLabel: "FULFILLMENT", concept: "SERVICE", y: 480 },
+  { id: "agent", label: "AGENT", subLabel: "DECISION", y: 60 },
+  { id: "policy", label: "POLICY", subLabel: "ENGINE", y: 130 },
+  { id: "intent", label: "PAYMENT", subLabel: "INTENT", y: 200 },
+  { id: "wallet", label: "WALLET", subLabel: "SIGNATURE", y: 270 },
+  { id: "arc", label: "ARC", subLabel: "SETTLEMENT", y: 340 },
+  { id: "verify", label: "VERIFIED", subLabel: "PAYMENT", y: 410 },
+  { id: "fulfill", label: "SERVICE", subLabel: "FULFILLMENT", y: 480 },
 ];
 
 const CONNECTIONS = [
@@ -22,13 +29,13 @@ const CONNECTIONS = [
 ];
 
 const SIDE_LABELS = [
-  { id: "agent", text: "AGENT DECISION" },
-  { id: "policy", text: "SERVER POLICY" },
-  { id: "intent", text: "IMMUTABLE INTENT" },
-  { id: "wallet", text: "EXPLICIT AUTH" },
-  { id: "arc", text: "ARC SETTLEMENT" },
-  { id: "verify", text: "PAYMENT VERIFY" },
-  { id: "fulfill", text: "GATED RESULT" },
+  { id: "agent", y: 60, text: "AGENT DECISION" },
+  { id: "policy", y: 130, text: "SERVER POLICY" },
+  { id: "intent", y: 200, text: "IMMUTABLE INTENT" },
+  { id: "wallet", y: 270, text: "EXPLICIT AUTH" },
+  { id: "arc", y: 340, text: "ARC SETTLEMENT" },
+  { id: "verify", y: 410, text: "PAYMENT VERIFY" },
+  { id: "fulfill", y: 480, text: "GATED RESULT" },
 ];
 
 const VB_WIDTH = 600;
@@ -36,21 +43,238 @@ const VB_HEIGHT = 540;
 const CENTER_X = VB_WIDTH / 2;
 const NODE_WIDTH = 104;
 const NODE_X = CENTER_X - NODE_WIDTH / 2;
-const NODE_HEIGHT = 52;
-const NODE_SPACING = 70;
 
-const ACTIVE_DURATION = 1200;
-const PACKET_DURATION = 600;
+const ACTIVE_DURATION = 800;
+const PACKET_DURATION = 500;
+const TRANSITION_DURATION = 200;
+const PULSE_DURATION = 800;
+const FULL_CYCLE = 8500;
+
+function Node({
+  node,
+  index,
+  isActive,
+  pulseKey,
+}: {
+  node: typeof NODES[0];
+  index: number;
+  isActive: boolean;
+  pulseKey: number;
+}) {
+  const borderColor = isActive ? ORANGE : GRAY;
+  const titleColor = isActive ? ORANGE : FOREGROUND;
+  const strokeWidth = isActive ? 2 : 1;
+  const dotColor = isActive ? ORANGE : GRAY;
+
+  return (
+    <motion.g
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4, delay: index * 0.06 }}
+      style={{ transformOrigin: "center" }}
+    >
+      {/* Pulse ring (only when active) */}
+      {isActive && (
+        <motion.circle
+          key={`pulse-${pulseKey}`}
+          cx={CENTER_X}
+          cy={node.y}
+          initial={{ r: NODE_WIDTH / 2 + 4, opacity: 0.3 }}
+          animate={{ r: NODE_WIDTH / 2 + 16, opacity: 0 }}
+          transition={{ duration: PULSE_DURATION, ease: "easeOut" }}
+          fill="none"
+          stroke={ORANGE}
+          strokeWidth={1.5}
+        />
+      )}
+
+      {/* Node background */}
+      <rect
+        x={NODE_X}
+        y={node.y - 26}
+        width={NODE_WIDTH}
+        height={52}
+        rx={0}
+        fill={CARD}
+        stroke={borderColor}
+        strokeWidth={strokeWidth}
+      />
+
+      {/* Main label */}
+      <text
+        x={CENTER_X}
+        y={node.y - 8}
+        textAnchor="middle"
+        fill={titleColor}
+        fontSize={10}
+        fontFamily="var(--font-mono), monospace"
+        fontWeight={600}
+        letterSpacing="0.1em"
+        className="select-none"
+      >
+        {node.label}
+      </text>
+
+      {/* Sub label */}
+      <text
+        x={CENTER_X}
+        y={node.y + 12}
+        textAnchor="middle"
+        fill={MUTED}
+        fontSize={7}
+        fontFamily="var(--font-mono), monospace"
+        fontWeight={500}
+        letterSpacing="0.08em"
+        className="select-none"
+      >
+        {node.subLabel}
+      </text>
+
+      {/* Active indicator dot */}
+      <circle
+        cx={NODE_X + NODE_WIDTH - 10}
+        cy={node.y}
+        r={4}
+        fill={dotColor}
+      />
+    </motion.g>
+  );
+}
+
+function Connector({
+  fromY,
+  toY,
+  progress,
+}: {
+  fromY: number;
+  toY: number;
+  progress: number;
+}) {
+  const segmentLength = toY - fromY;
+  const packetY = fromY + segmentLength * progress;
+
+  return (
+    <motion.g>
+      {/* Base connector (always gray) */}
+      <line
+        x1={CENTER_X}
+        y1={fromY + 26}
+        x2={CENTER_X}
+        y2={toY - 26}
+        stroke={GRAY}
+        strokeWidth={1}
+      />
+
+      {/* Orange active segment following packet */}
+      {progress > 0 && progress < 1 && (
+        <motion.line
+          x1={CENTER_X}
+          y1={fromY + 26}
+          x2={CENTER_X}
+          y2={packetY}
+          stroke={ORANGE}
+          strokeWidth={2}
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: PACKET_DURATION * 0.8, ease: "linear" }}
+        />
+      )}
+
+      {/* Moving packet */}
+      {progress > 0 && progress < 1 && (
+        <motion.circle
+          cx={CENTER_X}
+          cy={packetY}
+          r={3}
+          fill={ORANGE}
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 100 }}
+        />
+      )}
+    </motion.g>
+  );
+}
+
+function SideLabels({
+  activeNodeId,
+  reducedMotion,
+}: {
+  activeNodeId: string | null;
+  reducedMotion: boolean;
+}) {
+  return (
+    <motion.g
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.6 }}
+    >
+      {/* Left side labels */}
+      {SIDE_LABELS.map((l) => {
+        const isActive = activeNodeId === l.id;
+        return (
+          <motion.text
+            key={`lbl-${l.text}`}
+            x={20}
+            y={l.y}
+            textAnchor="start"
+            fill={isActive ? ORANGE : MUTED}
+            fontSize={6}
+            fontFamily="var(--font-mono), monospace"
+            fontWeight={500}
+            letterSpacing="0.1em"
+            className="select-none"
+            transition={reducedMotion ? undefined : { duration: 200 }}
+          >
+            {l.text}
+          </motion.text>
+        );
+      })}
+
+      {/* Right side status markers */}
+      {NODES.map((node) => {
+        const isActive = activeNodeId === node.id;
+        return (
+          <motion.g
+            key={`status-${node.id}`}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 + NODES.indexOf(node) * 0.06 }}
+          >
+            <circle
+              cx={VB_WIDTH - 60}
+              cy={node.y}
+              r={3}
+              fill={isActive ? ORANGE : GRAY}
+            />
+            <motion.text
+              x={VB_WIDTH - 50}
+              y={node.y + 3}
+              textAnchor="start"
+              fill={isActive ? ORANGE : MUTED}
+              fontSize={6}
+              fontFamily="var(--font-mono), monospace"
+              fontWeight={500}
+              letterSpacing="0.08em"
+              className="select-none"
+              transition={reducedMotion ? undefined : { duration: 200 }}
+            >
+              {isActive ? "ACTIVE" : "PENDING"}
+            </motion.text>
+          </motion.g>
+        );
+      })}
+    </motion.g>
+  );
+}
 
 export function HeroSystemDiagram() {
   const [mounted, setMounted] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [packetProgress, setPacketProgress] = useState(0);
-  const [packetFrom, setPacketFrom] = useState(0);
-  const [packetTo, setPacketTo] = useState(1);
-  const [showPacket, setShowPacket] = useState(false);
+  const [pulseKey, setPulseKey] = useState(0);
   const cycleRef = useRef<NodeJS.Timeout | null>(null);
+  const [connectorProgress, setConnectorProgress] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setMounted(true);
@@ -61,10 +285,10 @@ export function HeroSystemDiagram() {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  // Animation cycle using CSS-like timing
+  // Animation cycle
   useEffect(() => {
     if (reducedMotion) {
-      setActiveIndex(0);
+      setActiveIndex(1); // POLICY as default for reduced motion
       return;
     }
 
@@ -76,45 +300,48 @@ export function HeroSystemDiagram() {
 
       // Activate current node
       setActiveIndex(currentIndex);
+      setPulseKey((k) => k + 1);
 
       const isLastNode = currentIndex === NODES.length - 1;
 
-      // Hold active state
-      const holdTimeout = setTimeout(() => {
+      // After active duration, either animate packet to next node or loop
+      const step1Timeout = setTimeout(() => {
         if (cancelled) return;
 
         if (!isLastNode) {
-          // Start packet animation to next node
-          setPacketFrom(currentIndex);
-          setPacketTo(currentIndex + 1);
-          setPacketProgress(0);
-          setShowPacket(true);
+          // Animate packet to next node
+          const connKey = `${NODES[currentIndex].id}-${NODES[currentIndex + 1].id}`;
+          setConnectorProgress((prev) => ({ ...prev, [connKey]: 0 }));
 
-          // Animate packet
+          // Animate packet progress from 0 to 1 over PACKET_DURATION
           const startTime = Date.now();
           const animatePacket = () => {
             if (cancelled) return;
             const elapsed = Date.now() - startTime;
             const progress = Math.min(elapsed / PACKET_DURATION, 1);
-            setPacketProgress(progress);
+            setConnectorProgress((prev) => ({ ...prev, [connKey]: progress }));
             if (progress < 1) {
               requestAnimationFrame(animatePacket);
             } else {
-              // Packet arrived
-              setShowPacket(false);
+              // Packet arrived, move to next node
               currentIndex = (currentIndex + 1) % NODES.length;
-              runCycle();
+              setConnectorProgress((prev) => {
+                const next = { ...prev };
+                delete next[connKey];
+                return next;
+              });
+              runCycle(); // Continue cycle
             }
           };
           animatePacket();
         } else {
-          // Last node - loop back
+          // Last node - loop back to first
           currentIndex = 0;
           runCycle();
         }
       }, ACTIVE_DURATION);
 
-      cycleRef.current = holdTimeout;
+      cycleRef.current = step1Timeout;
     };
 
     runCycle();
@@ -135,6 +362,9 @@ export function HeroSystemDiagram() {
     );
   }
 
+  const activeNodeId = NODES[activeIndex].id;
+  const activeNode = NODES[activeIndex];
+
   return (
     <div className="relative w-full max-w-[760px] mx-auto">
       <svg
@@ -152,7 +382,7 @@ export function HeroSystemDiagram() {
           y1={34}
           y2={506}
           x2={CENTER_X}
-          stroke="hsl(var(--border))"
+          stroke={GRAY}
           strokeWidth={1}
         />
 
@@ -162,226 +392,32 @@ export function HeroSystemDiagram() {
           const toNode = NODES.find((n) => n.id === conn.to);
           if (!fromNode || !toNode) return null;
 
-          const isActiveConnection = packetFrom === i && packetTo === i + 1 && showPacket;
-          const progress = isActiveConnection ? packetProgress : 0;
-          const fromY = fromNode.y;
-          const toY = toNode.y;
-          const segmentLength = toY - fromY;
-          const packetY = fromY + segmentLength * progress;
+          const connKey = `${conn.from}-${conn.to}`;
+          const progress = connectorProgress[connKey] ?? 0;
 
           return (
-            <g key={`conn-${conn.from}-${conn.to}`}>
-              {/* Base connector (always gray) */}
-              <line
-                x1={CENTER_X}
-                y1={fromY + NODE_HEIGHT / 2}
-                x2={CENTER_X}
-                y2={toY - NODE_HEIGHT / 2}
-                stroke="hsl(var(--border))"
-                strokeWidth={1}
-              />
-
-              {/* Orange active segment */}
-              {isActiveConnection && progress > 0 && (
-                <line
-                  x1={CENTER_X}
-                  y1={fromY + NODE_HEIGHT / 2}
-                  x2={CENTER_X}
-                  y2={packetY}
-                  stroke="hsl(var(--accent))"
-                  strokeWidth={2}
-                  className="animate-line-draw"
-                />
-              )}
-
-              {/* Moving packet */}
-              {isActiveConnection && progress > 0 && progress < 1 && (
-                <circle
-                  cx={CENTER_X}
-                  cy={packetY}
-                  r={4}
-                  fill="hsl(var(--accent))"
-                  className="animate-pipeline-pulse"
-                />
-              )}
-            </g>
+            <Connector
+              key={`conn-${conn.from}-${conn.to}`}
+              fromY={fromNode.y}
+              toY={toNode.y}
+              progress={progress}
+            />
           );
         })}
 
         {/* Nodes */}
-        {NODES.map((node, i) => {
-          const isActive = i === activeIndex;
-          const isCompleted = i < activeIndex && !reducedMotion;
-          const y = 60 + i * NODE_SPACING;
-
-          return (
-            <g
-              key={node.id}
-              transform={`translate(0, ${y - 60})`}
-              style={{
-                opacity: isActive || isCompleted ? 1 : 0,
-                transform: `translateY(${isActive || isCompleted ? 0 : 20}px)`,
-                transition: "opacity 0.4s ease-out, transform 0.4s ease-out",
-              }}
-            >
-              {/* Pulse ring (only when active) */}
-              {isActive && !reducedMotion && (
-                <circle
-                  cx={CENTER_X}
-                  cy={30}
-                  r={20}
-                  fill="none"
-                  stroke="hsl(var(--accent))"
-                  strokeWidth={1.5}
-                  className="animate-pulse-ring"
-                />
-              )}
-
-              {/* Node background */}
-              <rect
-                x={NODE_X}
-                y={4}
-                width={NODE_WIDTH}
-                height={NODE_HEIGHT}
-                rx={0}
-                fill="hsl(var(--card))"
-                stroke={isActive ? "hsl(var(--accent))" : isCompleted ? "hsl(var(--success))" : "hsl(var(--border))"}
-                strokeWidth={isActive ? 2 : 1}
-              />
-
-              {/* Main label */}
-              <text
-                x={CENTER_X}
-                y={20}
-                textAnchor="middle"
-                fill={isActive ? "hsl(var(--accent))" : isCompleted ? "hsl(var(--success))" : "hsl(var(--foreground))"}
-                fontSize={10}
-                fontFamily="var(--font-mono), monospace"
-                fontWeight={600}
-                letterSpacing="0.1em"
-                className="select-none"
-              >
-                {node.label}
-              </text>
-
-              {/* Sub label */}
-              <text
-                x={CENTER_X}
-                y={40}
-                textAnchor="middle"
-                fill="hsl(var(--muted-foreground))"
-                fontSize={7}
-                fontFamily="var(--font-mono), monospace"
-                fontWeight={500}
-                letterSpacing="0.08em"
-                className="select-none"
-              >
-                {node.subLabel}
-              </text>
-
-              {/* Active indicator dot */}
-              <circle
-                cx={NODE_X + NODE_WIDTH - 10}
-                cy={30}
-                r={4}
-                fill={isActive ? "hsl(var(--accent))" : isCompleted ? "hsl(var(--success))" : "hsl(var(--border))"}
-              />
-
-              {/* Active concept badge */}
-              {isActive && !reducedMotion && (
-                <g>
-                  <rect
-                    x={CENTER_X - 35}
-                    y={-18}
-                    width={70}
-                    height={14}
-                    rx={0}
-                    fill="hsl(var(--accent) / 0.1)"
-                    stroke="hsl(var(--accent) / 0.3)"
-                    strokeWidth={1}
-                  />
-                  <text
-                    x={CENTER_X}
-                    y={-8}
-                    textAnchor="middle"
-                    fill="hsl(var(--accent))"
-                    fontSize={6}
-                    fontFamily="var(--font-mono), monospace"
-                    fontWeight={600}
-                    letterSpacing="0.1em"
-                    className="select-none"
-                  >
-                    {node.concept}
-                  </text>
-                </g>
-              )}
-
-              {/* Completed checkmark */}
-              {isCompleted && (
-                <g transform={`translate(${NODE_X + NODE_WIDTH - 10}, 30)`}>
-                  <circle r={6} fill="hsl(var(--success))" />
-                  <path d="M-3 0 L-1 2 L3 -2" stroke="white" strokeWidth={1.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                </g>
-              )}
-            </g>
-          );
-        })}
+        {NODES.map((node, i) => (
+          <Node
+            key={node.id}
+            node={node}
+            index={i}
+            isActive={node.id === activeNodeId}
+            pulseKey={pulseKey}
+          />
+        ))}
 
         {/* Side annotations */}
-        <g>
-          {/* Left side labels */}
-          {SIDE_LABELS.map((l, i) => {
-            const isActive = activeIndex === i;
-            return (
-              <text
-                key={`lbl-${l.text}`}
-                x={20}
-                y={60 + i * NODE_SPACING + 4}
-                textAnchor="start"
-                fill={isActive ? "hsl(var(--accent))" : "hsl(var(--muted-foreground))"}
-                fontSize={6}
-                fontFamily="var(--font-mono), monospace"
-                fontWeight={500}
-                letterSpacing="0.1em"
-                className="select-none"
-                style={{ transition: "fill 0.2s ease" }}
-              >
-                {l.text}
-              </text>
-            );
-          })}
-
-          {/* Right side status markers */}
-          {NODES.map((node, i) => {
-            const isActive = activeIndex === i;
-            const isCompleted = i < activeIndex && !reducedMotion;
-            const y = 60 + i * NODE_SPACING;
-            return (
-              <g key={`status-${node.id}`}>
-                <circle
-                  cx={VB_WIDTH - 60}
-                  cy={y + 4}
-                  r={3}
-                  fill={isActive ? "hsl(var(--accent))" : isCompleted ? "hsl(var(--success))" : "hsl(var(--border))"}
-                />
-                <text
-                  x={VB_WIDTH - 50}
-                  y={y + 11}
-                  textAnchor="start"
-                  fill={isActive ? "hsl(var(--accent))" : isCompleted ? "hsl(var(--success))" : "hsl(var(--muted-foreground))"}
-                  fontSize={6}
-                  fontFamily="var(--font-mono), monospace"
-                  fontWeight={500}
-                  letterSpacing="0.08em"
-                  className="select-none"
-                  style={{ transition: "fill 0.2s ease" }}
-                >
-                  {isCompleted ? "DONE" : isActive ? "ACTIVE" : "PENDING"}
-                </text>
-              </g>
-            );
-          })}
-        </g>
+        <SideLabels activeNodeId={activeNodeId} reducedMotion={reducedMotion} />
       </svg>
     </div>
   );
